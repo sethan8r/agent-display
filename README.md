@@ -78,7 +78,10 @@ Click a topic to expand it.
   - time — how long the current task runs, or how long ago it finished;
   - second line — what it does right now (icon + tool + file or command), or what it waits for;
   - **%** and the thin bar — context window usage. The bar turns yellow at 70 %, red at 90 %,
-    and is dashed when unknown (start of a session, right after `/compact`).
+    and is dashed when unknown (start of a session, right after `/compact`);
+  - a third line, with big text when there is room: the full question or command for a session waiting for you,
+    what was done for a finished one, **quiet N min** for a working one that hasn't done anything for a while,
+    the first subagent's task, otherwise the project folder and model.
 - **Order** — by start time, new sessions at the end. Rows never jump: a waiting session is not moved
   to the top, it blinks where it is.
 - **▲ ▼** — appear when sessions don't fit. A blinking yellow **⚠** on an arrow tells you that someone
@@ -128,7 +131,7 @@ Goes back by **Back** or by itself after 30 s without touches (the thin line und
 | Text size | 13 / 14 / 16 px for names (14 by default), the rest of the text scales with it |
 | Brightness | slider. The board's light sensor is too weak to be useful, so there is no auto mode; the backlight never dims by itself |
 | Layout | Large / Compact / Grid |
-| Recalibrate touch | tap 4 crosses in the corners, a stylus works best |
+| Recalibrate touch | tap the tip of the arrow in each corner, a stylus works best |
 
 Everything is stored on the board and survives a reboot. The bottom line shows the firmware version
 and a green "Firmware available" when the plugin brings a newer one.
@@ -145,7 +148,7 @@ and a green "Firmware available" when the plugin brings a newer one.
 | Hub not connected | no data from the PC for 6 s | turn on the PC, start Claude Code with the plugin, check the USB cable |
 | Plugin is newer than firmware | the board needs an update | in Claude Code: `/agent-display:update-firmware` |
 | Firmware is newer than plugin | the plugin needs an update | in Claude Code: `/plugin update agent-display` |
-| Touch calibration | first start, or "Recalibrate" in settings | tap the center of each cross |
+| Touch calibration | first start, or "Recalibrate" in settings | tap the tip of the arrow in each corner |
 
 </details>
 

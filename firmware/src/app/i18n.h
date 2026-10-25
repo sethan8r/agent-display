@@ -6,7 +6,7 @@ namespace ui {
 
 struct Strings {
   const char *agents, *back, *settings, *theme, *lang, *size, *layout, *large, *compact, *grid, *recal, *calib_saved;
-  const char *fw_avail, *fw, *proto, *ctx, *nodata, *subagents, *more, *opened, *lim_no, *h5, *wk, *reset;
+  const char *fw_avail, *fw, *proto, *ctx, *nodata, *subagents, *more, *opened, *lim_no, *h5, *wk, *reset, *quiet;
   const char *no_agents, *hub_lost, *hub_lost_sub, *lim_stale, *plug_newer, *fw_newer, *upd_fw, *upd_plug, *in_cc;
   const char *calib_t, *calib_s, *calib_go, *thinking, *wait_subs, *ago;  // ago: printf format, %s = duration
   const char* u[8];   // " s", " min", " h", " d", then the short forms
@@ -23,7 +23,7 @@ inline const Strings& ru() {
     s.size = "Размер текста"; s.layout = "Раскладка"; s.large = "Крупно"; s.compact = "Компактно"; s.grid = "Сетка";
     s.recal = "Перекалибровать экран"; s.calib_saved = "Калибровка сохранена"; s.fw_avail = "Есть прошивка";
     s.fw = "Прошивка"; s.proto = "протокол"; s.ctx = "Контекст"; s.nodata = "нет данных"; s.subagents = "Субагенты";
-    s.more = "ещё"; s.opened = "открыта"; s.lim_no = "Лимиты: нет данных"; s.h5 = "5ч"; s.wk = "Нед"; s.reset = "сброшен";
+    s.more = "ещё"; s.opened = "открыта"; s.lim_no = "Лимиты: нет данных"; s.h5 = "5ч"; s.wk = "Нед"; s.reset = "сброшен"; s.quiet = "тишина";
     s.no_agents = "Агентов нет"; s.hub_lost = "Хаб не подключён";
     s.hub_lost_sub = "Комп выключен или Claude Code работает без плагина agent-display";
     s.lim_stale = "Лимиты внизу давно не обновлялись"; s.plug_newer = "Плагин новее прошивки";
@@ -56,7 +56,7 @@ inline const Strings& en() {
     s.size = "Text size"; s.layout = "Layout"; s.large = "Large"; s.compact = "Compact"; s.grid = "Grid";
     s.recal = "Recalibrate touch"; s.calib_saved = "Calibration saved"; s.fw_avail = "Firmware available";
     s.fw = "Firmware"; s.proto = "protocol"; s.ctx = "Context"; s.nodata = "no data"; s.subagents = "Subagents";
-    s.more = "more"; s.opened = "open"; s.lim_no = "Limits: no data"; s.h5 = "5h"; s.wk = "Wk"; s.reset = "reset";
+    s.more = "more"; s.opened = "open"; s.lim_no = "Limits: no data"; s.h5 = "5h"; s.wk = "Wk"; s.reset = "reset"; s.quiet = "quiet";
     s.no_agents = "No agents"; s.hub_lost = "Hub not connected";
     s.hub_lost_sub = "PC is off or Claude Code runs without the agent-display plugin";
     s.lim_stale = "Limits below are out of date"; s.plug_newer = "Plugin is newer than firmware";

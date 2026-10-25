@@ -28,7 +28,7 @@ class LGFX : public lgfx::LGFX_Device {
     auto b = bus_.config();
     b.spi_host = SPI2_HOST;  // HSPI
     b.spi_mode = 0;
-    b.freq_write = 40000000;
+    b.freq_write = 80000000;  // display pins are native HSPI pins (IOMUX), 80 MHz is fine
     b.freq_read = 16000000;
     b.spi_3wire = false;
     b.use_lock = true;

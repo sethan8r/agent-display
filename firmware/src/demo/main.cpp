@@ -211,14 +211,18 @@ static void build_showcase() {
                       {"Explore", "Найти все вызовы Serial"}};
   fixed.push_back(subs);
   fixed.push_back(work("landing", "site/landing", 40, 12, "run", "Bash: npm run build"));
-  fixed.push_back(work("docs", "work/docs", 75, 55, "read", "Read docs/protocol.md"));
+  Sim docs = work("docs", "work/docs", 400, 55, "read", "Read docs/protocol.md");
+  docs.s.quiet = 200;  // silent for a while: shows "quiet 3 min" on big text
+  fixed.push_back(docs);
   fixed.push_back(work("api-gateway", "work/api-gateway", 520, 74, "find", "Grep: session_id"));
   fixed.push_back(work("ml-pipeline", "lab/ml-pipeline", 1300, 30, "web", "WebFetch code.claude.com/docs/en/hooks"));
   Sim agent = work("infra", "work/infra", 3700, 48, "agent", "Agent: Найти конфиг роутера");
   agent.s.subagents = {{"Explore", "Найти конфиг роутера"}};
   fixed.push_back(agent);
   fixed.push_back(work("Обновить зависимости", "work/shop-frontend", 20, -1, "other", "/compact"));
-  fixed.push_back(mk("Миграция БД на Postgres", "work/shop-backend", "done", 720, 91, 9000));
+  Sim done = mk("Миграция БД на Postgres", "work/shop-backend", "done", 720, 91, 9000);
+  done.s.summary = "Перенёс 14 таблиц на Postgres, все тесты зелёные";
+  fixed.push_back(done);
   fixed.push_back(mk("Фикс тача XPT2046", "VSCodeProjects/agent-display", "error", 45, 61));
   fixed.push_back(mk("Новая сессия", "VSCodeProjects/new", "idle", 0, -1, 30));
 }

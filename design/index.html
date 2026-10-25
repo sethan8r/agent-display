@@ -41,8 +41,6 @@ details[open] summary { margin-bottom:10px; }
 .gi { display:flex; flex-direction:column; align-items:center; gap:10px; }
 .gl { font-size:13px; color:var(--p-mut); text-align:center; }
 .gl b { color:var(--p-fg); font-weight:600; display:block; }
-.gnote { grid-column:1 / -1; color:var(--p-mut); font-size:14px; max-width:920px; margin-top:6px; }
-.gnote b { color:var(--p-fg); }
 
 /* the case: a stand-in for the 3D-printed enclosure */
 .case { background:linear-gradient(160deg, #2A2E35, #1A1D22); border-radius:26px; padding:34px 20px 44px; position:relative;
@@ -111,7 +109,7 @@ body.cap { background:transparent; }
 .card .r2 .ic, .row > .ic, .cell .ic { color:var(--c); }
 .card .r2 .pc { margin-left:auto; padding-left:4px; font-size:var(--fs); font-variant-numeric:tabular-nums; flex:none; }
 .card .bar { margin-top:5px; }
-/* idea: third line of a card when there is room */
+/* third line of a card, when there is room (big text) */
 .card .r3 { height:calc(var(--fs) + 4px); line-height:calc(var(--fs) + 4px); font-size:var(--fs); color:var(--mut); margin-top:2px;
             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .card .r3 .ic { vertical-align:-1px; margin-right:3px; }
@@ -220,10 +218,10 @@ body.cap { background:transparent; }
 .calib .ct { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center; padding:0 40px; color:#9AA3B2; }
 .calib .ct b { color:#fff; font-size:14px; }
 .calib .cn { font-variant-numeric:tabular-nums; color:#fff; }
-.cross { position:absolute; width:40px; height:40px; }
-.cross::before, .cross::after { content:""; position:absolute; background:#FF5D5D; }
-.cross::before { left:19px; top:4px; width:2px; height:32px; }
-.cross::after { top:19px; left:4px; height:2px; width:32px; }
+.calib { border:0; padding:0; width:100%; font:inherit; cursor:pointer; }
+.calib .ct .ic { color:#FF5D5D; margin-bottom:4px; }
+.calib .go { color:#2F86FF; font-weight:600; margin-top:6px; }
+.calib .arrow { position:absolute; width:40px; height:40px; font-size:32px; line-height:40px; text-align:center; color:#fff; }
 </style>
 </head>
 <body>
@@ -287,7 +285,7 @@ const L10N = {
     noAgents: 'Агентов нет', hubLost: 'Хаб не подключён',
     hubLostSub: 'Комп выключен или Claude Code работает без плагина agent-display', limStale: 'Лимиты внизу давно не обновлялись',
     plugNewer: 'Плагин новее прошивки', fwNewer: 'Прошивка новее плагина', updFw: 'Обнови прошивку', updPlug: 'Обнови плагин', inCC: '— в Claude Code:',
-    calibT: 'Калибровка экрана', calibS: 'Нажми стилусом точно в центр крестика', thinking: 'Думает…', waitSubs: 'Ждёт субагентов',
+    calibT: 'Калибровка экрана', calibS: 'В углах по очереди появятся стрелки. Нажимай стилусом точно в кончик каждой.', calibGo: 'Нажми, чтобы начать', thinking: 'Думает…', waitSubs: 'Ждёт субагентов',
     ago: d => `${d} назад`, u: [' с', ' мин', ' ч', ' д', 'с', 'м', 'ч', 'д'], wd: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
     st: { idle: ['Ждёт задачу', 'новая'], work: ['Работает', 'работает'], subs: ['Ждёт субагентов', 'субагенты'], wait: ['Ждёт тебя', 'ждёт'], done: ['Готов', 'готов'], error: ['Ошибка API', 'ошибка'] },
     wf: { perm: ['Просит разрешение', 'разрешение'], question: ['Задал вопрос', 'вопрос'], plan: ['Ждёт одобрения плана', 'план'] },
@@ -305,7 +303,7 @@ const L10N = {
     noAgents: 'No agents', hubLost: 'Hub not connected',
     hubLostSub: 'PC is off or Claude Code runs without the agent-display plugin', limStale: 'Limits below are out of date',
     plugNewer: 'Plugin is newer than firmware', fwNewer: 'Firmware is newer than plugin', updFw: 'Update the firmware', updPlug: 'Update the plugin', inCC: 'in Claude Code:',
-    calibT: 'Touch calibration', calibS: 'Tap the exact center of the cross with a stylus', thinking: 'Thinking…', waitSubs: 'Waiting for subagents',
+    calibT: 'Touch calibration', calibS: 'Arrows will appear in the corners one by one. Tap the exact tip of each with a stylus.', calibGo: 'Tap to start', thinking: 'Thinking…', waitSubs: 'Waiting for subagents',
     ago: d => `${d} ago`, u: [' s', ' min', ' h', ' d', 's', 'm', 'h', 'd'], wd: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
     st: { idle: ['Waiting for a task', 'new'], work: ['Working', 'working'], subs: ['Waiting for subagents', 'subagents'], wait: ['Waiting for you', 'waiting'], done: ['Done', 'done'], error: ['API error', 'error'] },
     wf: { perm: ['Asks permission', 'permission'], question: ['Asked a question', 'question'], plan: ['Waiting for plan approval', 'plan'] },
@@ -321,7 +319,7 @@ const L10N = {
 function dur(sec, short, T) {
   const u = T.u, o = short ? 4 : 0;
   sec = Math.max(0, Math.floor(sec));
-  if (sec < 60) return sec + u[o];
+  if (sec < 60) return '<1' + u[o + 1];  // no seconds, like the board
   const m = Math.floor(sec / 60);
   if (m < 60) return m + u[o + 1];
   const h = Math.floor(m / 60), mm = m % 60;
@@ -352,7 +350,7 @@ function line2(s, T) {
     default: return [i.icon, i.label];
   }
 }
-// idea: what fills the third line, by status
+// what fills the third line, by status
 function line3(x, T) {
   const subs = x.subagents || [], n = subs.length + (x.subagents_more || 0);
   if (x.status === 'done' && x.summary) return `${icon('check', 11)}${esc(x.summary)}`;
@@ -378,7 +376,7 @@ function marquee() {
 /* list layouts: item height (depends on text size) + gap → how many fit into the list area (254 px, or 220 with the pager) */
 const SIZES = { 13: { ch: 48, rh: 24, gh: 48, fn: 13, ft: 11, fs: 10 }, 14: { ch: 50, rh: 26, gh: 50, fn: 14, ft: 12, fs: 11 },
   16: { ch: 56, rh: 30, gh: 56, fn: 16, ft: 13, fs: 12 } };
-// idea: card height needed for a third line (or a two-line question)
+// card height needed for a third line (or a two-line question)
 const roomFor3 = z => 4 + z.fn + 3 + 1 + 2 * (z.ft + 3) + 9;
 const LAYOUTS = {
   large: {
@@ -391,10 +389,6 @@ const LAYOUTS = {
         ${l3 ? `<div class="r3">${l3}</div>` : ''}
         ${bar(x.ctx)}</div>`;
     },
-  },
-  detail: {  // idea: a layout that always has the third line, 3 agents per page
-    cap: (a, z) => Math.floor(a / (roomFor3(z) + 2 + 4)),
-    item: (x, now, T) => LAYOUTS.large.item(x, now, T, true),
   },
   compact: {
     cap: (a, z) => Math.floor((a - 2) / (z.rh + 2)),
@@ -444,7 +438,7 @@ class Board {
       case 'layout': u.layout = v; u.page = 0; break;
       case 'size': u.size = +v; u.page = 0; break;
       case 'calib': u.screen = 'calib'; u.calib = 0; break;
-      case 'cross': if (++u.calib >= 4) { u.screen = 'settings'; u.toastAt = Date.now(); } break;
+      case 'cross': if (++u.calib > 4) { u.screen = 'settings'; u.toastAt = Date.now(); } break;
     }
     this.render();
   }
@@ -503,7 +497,7 @@ class Board {
     const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn')}</span>` : ''}</button>`;
     // stretch items so the page slots fill the list area (by slots, not sessions, so the last page looks the same)
     const gap = u.layout === 'compact' ? 2 : 4, slots = u.layout === 'grid' ? per / 2 : per;
-    const base = { large: z.ch, compact: z.rh, grid: z.gh, detail: roomFor3(z) + 2 }[u.layout];
+    const base = { large: z.ch, compact: z.rh, grid: z.gh }[u.layout];
     const h = Math.max(base, Math.floor(((paged ? 220 : 254) - 4 - (slots - 1) * gap) / slots));
     const room = u.layout === 'large' && h >= roomFor3(z);
     return this.hdr()
@@ -548,10 +542,12 @@ class Board {
       <div class="ver">${fwu ? `<span class="upd">${icon('download', 11)}${T.fwAvail} ${esc(fwu)}</span>` : ''}<span>${T.fw} ${FW} · ${T.proto} v${PROTO}</span></div>
       ${Date.now() - (u.toastAt || 0) < 2500 ? `<div class="toast">${T.calibSaved}</div>` : ''}`;
   }
-  calibHTML() {
-    const T = this.T, [x, y] = [[20, 20], [220, 20], [220, 300], [20, 300]][this.ui.calib];
-    return `<div class="calib"><div class="ct"><b>${T.calibT}</b><span>${T.calibS}</span><span class="cn">${this.ui.calib + 1} / 4</span></div>
-      <button class="cross" data-a="cross" style="left:${x - 20}px;top:${y - 20}px"></button></div>`;
+  calibHTML() {  // like the firmware: a "tap to start" screen, then the library's arrows in the corners one by one
+    const T = this.T, step = this.ui.calib;
+    if (!step) return `<button class="calib" data-a="cross"><div class="ct">${icon('target', 30)}<b>${T.calibT}</b><span>${T.calibS}</span>
+      <span class="go">${T.calibGo}</span></div></button>`;
+    const [pos, deg] = [['left:0;top:0', -45], ['right:0;top:0', 45], ['right:0;bottom:0', 135], ['left:0;bottom:0', -135]][step - 1];
+    return `<button class="calib" data-a="cross"><i class="fa-solid fa-arrow-up arrow" style="${pos};transform:rotate(${deg}deg)"></i></button>`;
   }
   emptyHTML() {
     const T = this.T, n = T.phrases.length;
@@ -589,8 +585,8 @@ function toProto(s) {
   if (s.ctx != null) { o.ctx = Math.round(s.ctx); o.tokens = Math.round(s.ctx / 100 * s.tokens_max); o.tokens_max = s.tokens_max; }
   if (s.model) o.model = s.model;
   o.dir = trunc(s.dir, 40); o.started = s.started;
-  if (s.status === 'done' && s.summary) o.summary = trunc(s.summary, 80);  // idea: first line of Claude's last answer
-  if (s.status === 'work' && s.quiet != null) o.quiet = s.quiet;             // idea: seconds since the last hook event
+  if (s.status === 'done' && s.summary) o.summary = trunc(s.summary, 80);  // first line of Claude's last answer
+  if (s.status === 'work' && s.quiet != null) o.quiet = s.quiet;             // seconds since the last hook event
   if (s.subagents.length) { o.subagents = s.subagents.slice(0, 4); if (s.subagents.length > 4) o.subagents_more = s.subagents.length - 4; }
   return o;
 }
@@ -646,22 +642,28 @@ function many(n, t, waitAt) {
       subagents: status === 'subs' ? [{ type: 'Explore', task: SUBTASKS[i % SUBTASKS.length][1] }] : [] }, t);
   });
 }
-const ideas = t => [
-  mk({ id: 'i1', name: 'Рефакторинг хаба', dir: 'agent-display/plugin', status: 'wait', wait_for: 'perm', since: t - 95, icon: 'ask',
+const IDEAS_TXT = {
+  ru: { hub: 'Рефакторинг хаба', migr: 'Миграция БД на Postgres', sum: 'Перенёс 14 таблиц на Postgres, все тесты зелёные',
+    t1: 'Найти все вызовы оплаты', t2: 'Где парсится webhook', t3: 'План рефакторинга', bot: 'Telegram-бот для заказов',
+    q: 'Удалить старые миграции или оставить их для отката на прошлую версию?' },
+  en: { hub: 'Hub refactoring', migr: 'Migrate DB to Postgres', sum: 'Moved 14 tables to Postgres, all tests green',
+    t1: 'Find all payment calls', t2: 'Where the webhook is parsed', t3: 'Refactoring plan', bot: 'Telegram order bot',
+    q: 'Delete the old migrations or keep them to roll back to the previous version?' },
+};
+const ideas = (t, lang = 'ru') => { const D = IDEAS_TXT[lang]; return [
+  mk({ id: 'i1', name: D.hub, dir: 'agent-display/plugin', status: 'wait', wait_for: 'perm', since: t - 95, icon: 'ask',
     action: 'Bash: git push --force-with-lease origin feature/hub-serial-reconnect', ctx: 67 }, t),
-  mk({ id: 'i2', name: 'Миграция БД на Postgres', dir: 'work/shop-backend', status: 'done', since: t - 720, ctx: 91,
-    summary: 'Перенёс 14 таблиц на Postgres, все тесты зелёные' }, t),
+  mk({ id: 'i2', name: D.migr, dir: 'work/shop-backend', status: 'done', since: t - 720, ctx: 91, summary: D.sum }, t),
   mk({ id: 'i3', name: 'landing', dir: 'site/landing', status: 'work', since: t - 400, icon: 'run', action: 'Bash: npm run test:e2e',
     ctx: 38, quiet: 200, model: 'Haiku 5.5' }, t),
   mk({ id: 'i4', name: 'shop-backend', dir: 'work/shop-backend', status: 'subs', since: t - 410, ctx: 23, model: 'Sonnet 5.5',
-    subagents: [{ type: 'Explore', task: 'Найти все вызовы оплаты' }, { type: 'Explore', task: 'Где парсится webhook' },
-      { type: 'Plan', task: 'План рефакторинга' }] }, t),
+    subagents: [{ type: 'Explore', task: D.t1 }, { type: 'Explore', task: D.t2 }, { type: 'Plan', task: D.t3 }] }, t),
   mk({ id: 'i5', name: 'agent-display', status: 'work', since: t - 260, icon: 'edit', action: 'Edit firmware/src/ui.cpp', ctx: 42, quiet: 5 }, t),
-  mk({ id: 'i6', name: 'Telegram-бот для заказов', dir: 'pets/order-bot', status: 'wait', wait_for: 'question', since: t - 150, icon: 'ask',
-    action: 'Удалить старые миграции или оставить их для отката на прошлую версию?', ctx: 34, model: 'Sonnet 5.5' }, t),
-];
+  mk({ id: 'i6', name: D.bot, dir: 'pets/order-bot', status: 'wait', wait_for: 'question', since: t - 150, icon: 'ask',
+    action: D.q, ctx: 34, model: 'Sonnet 5.5' }, t),
+]; };
 const SCEN = {
-  ideas: { label: 'Идеи: третья строка', build: t => ({ sessions: ideas(t), limits: LIM(t) }) },
+  ideas: { label: 'Третья строка (крупный текст)', build: t => ({ sessions: ideas(t), limits: LIM(t) }) },
   live: { label: 'Живая симуляция' },
   one: { label: 'Один агент', build: t => ({ sessions: [demo(t)[0]], limits: LIM(t) }) },
   many: { label: '12 агентов, ждущий за экраном', build: t => ({ sessions: many(12, t, 10), limits: LIM(t) }) },
@@ -738,14 +740,14 @@ const STORY = (() => {
   add(S({ screen: 'settings' }), 500, [30, 15]);
   return f;
 })();
-const STRIP = [S(), S({ screen: 'details', sel: 'd3c2f5b8' }), S({ screen: 'settings' }), S({ layout: 'compact', theme: 'light' }), S({ lost: true })];
+const STRIP = [S(), S({ screen: 'details', sel: 'd3c2f5b8' }), S({ screen: 'settings' }), S({ size: 16, theme: 'light', ideas: true }), S({ lost: true })];
 
 function capture(kind, lang, n) {
   document.body.className = 'cap';
   if (kind === 'meta') { document.body.innerHTML = `<pre id="meta">${JSON.stringify(STORY.map(f => f.ms))}</pre>`; return; }
   const one = (host, ui, blink = true, tap) => {
     const b = new Board(host, { static: true, ui: { ...ui, lang }, nvs: { limits: LIM(T0) } });
-    if (!ui.lost) b.feed(buildSnap({ sessions: demo(T0, lang), limits: LIM(T0) }, T0));
+    if (!ui.lost) b.feed(buildSnap({ sessions: ui.ideas ? ideas(T0, lang) : demo(T0, lang), limits: LIM(T0) }, T0));
     b.blink = blink; b.render();
     if (tap) b.el.firstElementChild.insertAdjacentHTML('beforeend', `<i class="tap" style="left:${tap[0]}px;top:${tap[1]}px"></i>`);
   };
@@ -815,16 +817,6 @@ else {
   });
 
   const GAL = [
-    '<b>Идея 1 — третья строка в карточке.</b> Место под неё появляется на крупном тексте (16 px), когда агентов больше, чем влезает '
-      + 'на страницу. Заполняется по статусу: <b>ждёт тебя</b> — вопрос или команда целиком в 2 строки; <b>готов</b> — что сделал '
-      + '(первая строка последнего ответа Claude); <b>работает</b> — «тишина N мин», если давно ничего не делал, иначе папка и модель; '
-      + '<b>ждёт субагентов</b> — задача первого из них.',
-    ['Идея 1 · текст 16 · стр. 1', 'ideas', { size: 16 }], ['Идея 1 · текст 16 · стр. 2', 'ideas', { size: 16, page: 1 }],
-    ['Идея 1 · текст 16 · светлая', 'ideas', { size: 16, theme: 'light' }], ['Как сейчас · текст 14 (третьей строке нет места)', 'ideas', {}],
-    '<b>Идея 2 — отдельная раскладка «Подробно».</b> Третья строка есть всегда, при любом размере текста; на страницу — 3 агента.',
-    ['Идея 2 · «Подробно» · стр. 1', 'ideas', { layout: 'detail' }], ['Идея 2 · «Подробно» · стр. 2', 'ideas', { layout: 'detail', page: 1 }],
-    ['Идея 2 · «Подробно» · светлая', 'ideas', { layout: 'detail', theme: 'light' }],
-    '<b>Все экраны — как сейчас</b>',
     ['Главный · Крупно', 'demo', {}], ['Главный · Компактно', 'many', { layout: 'compact' }], ['Главный · Сетка', 'demo', { layout: 'grid' }],
     ['Не влезли: ждущий ниже', 'many', {}], ['Подробности · субагенты', 'demo', { screen: 'details', sel: 'd3c2f5b8' }],
     ['Подробности · вопрос', 'demo', { screen: 'details', sel: 'd5e4b7da' }], ['Настройки', 'update', { screen: 'settings' }],
@@ -833,12 +825,12 @@ else {
     ['Светлая · Крупно', 'demo', { theme: 'light' }], ['Светлая · Компактно', 'many', { theme: 'light', layout: 'compact' }],
     ['Светлая · Подробности', 'demo', { theme: 'light', screen: 'details', sel: 'd2b1e4a7' }], ['Длинные названия', 'long', {}],
     ['English · Large', 'demo-en', { lang: 'en' }], ['English · Settings', 'demo-en', { lang: 'en', screen: 'settings' }],
+    ['Крупный текст · третья строка', 'ideas', { size: 16 }], ['Крупный текст · стр. 2', 'ideas', { size: 16, page: 1 }],
+    ['Крупный текст · светлая', 'ideas', { size: 16, theme: 'light' }],
   ];
   const t0 = nowSec();
   const gboards = [];
-  GAL.forEach(g => {
-    if (typeof g === 'string') { const n = document.createElement('div'); n.className = 'gnote'; n.innerHTML = g; $('#tab-gallery').append(n); return; }
-    const [title, sc, ui] = g;
+  GAL.forEach(([title, sc, ui]) => {
     const wrap = document.createElement('div'); wrap.className = 'gi';
     wrap.innerHTML = `<div class="case"><div class="z2"></div></div><div class="gl"><b>${title}</b></div>`;
     $('#tab-gallery').append(wrap);

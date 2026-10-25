@@ -18,6 +18,8 @@ struct Session {
   uint32_t tokens = 0, tokens_max = 0;
   std::vector<Subagent> subagents;
   int subagents_more = 0;
+  String summary;  // done: first line of Claude's last answer
+  int quiet = -1;  // working: seconds since the last hook event, -1 unknown
 };
 
 struct Limit {

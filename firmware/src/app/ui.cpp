@@ -75,14 +75,15 @@ lv_font_t* text_fonts[2][41];
 
 const lv_font_t* icons(int px) {
   lv_font_t*& f = icon_fonts[px];
-  if (!f) f = lv_tiny_ttf_create_data_ex(fa_solid, fa_solid_end - fa_solid, px, LV_FONT_KERNING_NONE, 16);
+  if (!f) f = lv_tiny_ttf_create_data_ex(fa_solid, fa_solid_end - fa_solid, px, LV_FONT_KERNING_NONE, 32);
   return f;
 }
 
 const lv_font_t* font(int px, bool semi = false) {
   lv_font_t*& f = text_fonts[semi][px];
-  if (!f) f = semi ? lv_tiny_ttf_create_data_ex(inter600, inter600_end - inter600, px, LV_FONT_KERNING_NONE, 32)
-                   : lv_tiny_ttf_create_data_ex(inter400, inter400_end - inter400, px, LV_FONT_KERNING_NONE, 32);
+  // glyph caches big enough for a screenful of text: rasterizing glyphs is what makes redraws slow
+  if (!f) f = semi ? lv_tiny_ttf_create_data_ex(inter600, inter600_end - inter600, px, LV_FONT_KERNING_NONE, 160)
+                   : lv_tiny_ttf_create_data_ex(inter400, inter400_end - inter400, px, LV_FONT_KERNING_NONE, 160);
   return f;
 }
 
@@ -130,9 +131,8 @@ lv_obj_t* fill(lv_obj_t* o, lv_color_t c, lv_opa_t opa = LV_OPA_COVER) {
   return o;
 }
 
-lv_obj_t* round(lv_obj_t* o, int r) {
+lv_obj_t* round(lv_obj_t* o, int r) {  // no clip_corner: it makes every redraw of the card much slower
   lv_obj_set_style_radius(o, r, 0);
-  lv_obj_set_style_clip_corner(o, true, 0);
   return o;
 }
 
@@ -301,7 +301,7 @@ const char* st_label(const Session& s, bool shrt) {
 String dur(int32_t sec, bool shrt) {
   const char* const* u = T().u + (shrt ? 4 : 0);
   sec = max(sec, (int32_t)0);
-  if (sec < 60) return String(sec) + u[0];
+  if (sec < 60) return String("<1") + u[1];  // no seconds: a ticking label would redraw the screen every second
   int m = sec / 60;
   if (m < 60) return String(m) + u[1];
   int h = m / 60, mm = m % 60;
@@ -484,13 +484,39 @@ lv_obj_t* tile(lv_obj_t* scr, const Session& s, int x, int y, int w, int h, int 
   return o;
 }
 
-void card(lv_obj_t* scr, const Session& s, int y, int h) {
+// the third line, when the card is tall enough: what fits best for the status
+void third_line(lv_obj_t* o, const Session& s, int x, int y, int w) {
+  const Theme& t = th();
+  const Size& z = sz();
+  const char* g = icon::folder;
+  uint32_t ink = t.mut;
+  String txt = s.dir + (s.model.length() ? String(" · ") + s.model : String());
+  bool semi = false;
+  if (s.status == "done" && s.summary.length()) { g = icon::check; txt = s.summary; }
+  else if (s.status == "work" && s.quiet >= 120) {  // busy but silent for a while: thinking hard or stuck
+    g = icon::clock; ink = t.wait_ink; semi = true;
+    txt = String(T().quiet) + " " + dur(s.quiet, false);
+  } else if (s.status == "subs" && !s.subagents.empty()) {
+    int n = s.subagents.size() + s.subagents_more;
+    g = icon::agent;
+    txt = s.subagents[0].type + " · " + s.subagents[0].task + (n > 1 ? String(" +") + (n - 1) : String());
+  }
+  lv_obj_t* i = icon(o, g, ICON_SMALL, ink);
+  lv_obj_set_pos(i, x, y + icon_dy(g, ICON_SMALL, z.fs, semi));
+  int iw = width_of(i) + 4;
+  lv_obj_set_pos(one_line(text(o, txt, z.fs, semi, ink), w - iw, z.fs, semi), x + iw, y);
+}
+
+void card(lv_obj_t* scr, const Session& s, int y, int h, bool room) {
   const Theme& t = th();
   const Size& z = sz();
   uint32_t c = st_color(s);
   int w = W - 8, inner = w - 4 - 14;  // 2 px frame each side, 7 px padding
   lv_obj_t* o = tile(scr, s, 4, y, w, h, 8, true);
-  int top = 3 + (h - z.card) / 2;  // content centered when the card is stretched
+  // with room: a question or command waiting for you gets two lines, other statuses a third line
+  bool two = room && is_wait(s), third = room && !two;
+  int extra = two ? line_h(z.ft, true) : third ? line_h(z.fs) + 2 : 0;
+  int top = 3 + (h - z.card - extra) / 2;  // content centered when the card is stretched
   lv_obj_t* tm = text(o, time_text(s, false), z.fs, false, t.mut);
   int tw = width_of(tm);
   lv_obj_set_pos(tm, 7 + inner - tw, top + (line_h(z.fn, true) - line_h(z.fs)) / 2 + 1);
@@ -504,8 +530,14 @@ void card(lv_obj_t* scr, const Session& s, int y, int h) {
   int pw = width_of(pc);
   lv_obj_set_pos(pc, 7 + inner - pw, r2 + 1);
   uint32_t ink = is_wait(s) ? t.wait_ink : s.status == "error" ? c : t.mut;
-  lv_obj_set_pos(one_line(text(o, txt, z.ft, is_wait(s), ink), inner - SLOT - 2 - pw - 6, z.ft, is_wait(s)), 5 + SLOT + 4, r2);
-  ctx_bar(o, 7, r2 + line_h(z.ft) + 4, inner, 3, s.ctx);
+  lv_obj_t* act = text(o, txt, z.ft, is_wait(s), ink);
+  int aw = inner - SLOT - 2 - pw - 6;
+  if (two) wrapped(act, aw, z.ft, true, 2);
+  else one_line(act, aw, z.ft, is_wait(s));
+  lv_obj_set_pos(act, 5 + SLOT + 4, r2);
+  int below = r2 + line_h(z.ft) + (two ? line_h(z.ft, true) : 0);
+  if (third) { third_line(o, s, 7, below + 1, inner); below += line_h(z.fs) + 2; }
+  ctx_bar(o, 7, below + 4, inner, 3, s.ctx);
 }
 
 void row(lv_obj_t* scr, const Session& s, int y, int h) {
@@ -608,8 +640,10 @@ void build_main(lv_obj_t* scr) {
   int gap = cfg.layout == 1 ? 2 : 4, slots = cfg.layout == 2 ? per / 2 : per;
   int base = cfg.layout == 0 ? z.card : cfg.layout == 1 ? z.row : z.cell;
   int h = max(base, ((paged ? LIST - PAGER : LIST) - 4 - (slots - 1) * gap) / slots);
+  // a third card line fits only with big text when the page is short of slots (same rule as the mockup)
+  bool room = cfg.layout == 0 && h >= 4 + z.fn + 3 + 1 + 2 * (z.ft + 3) + 9;
   for (int i = from; i < to; i++) {
-    if (cfg.layout == 0) { card(scr, ss[i], y, h); y += h + gap; }
+    if (cfg.layout == 0) { card(scr, ss[i], y, h, room); y += h + gap; }
     else if (cfg.layout == 1) { row(scr, ss[i], y, h); y += h + gap; }
     else { int k = i - from; cell(scr, ss[i], 4 + (k % 2) * ((W - 12) / 2 + 4), HDR + 4 + (k / 2) * (h + gap), h); }
   }
@@ -842,6 +876,7 @@ String screen_key() {
   for (auto& s : snap.sessions) {
     k += s.id; k += s.name; k += s.status; k += s.wait_for; k += s.icon; k += s.action; k += s.ctx; k += s.tokens;
     k += time_text(s, false); k += (snap.now - s.started) / 60; k += s.model; k += s.dir; k += s.subagents_more;
+    k += s.summary; k += s.quiet / 60;
     for (auto& a : s.subagents) { k += a.type; k += a.task; }
   }
   return k;
@@ -861,7 +896,7 @@ void calibrate() {
 }
 
 /* ---------- LVGL glue and timers ---------- */
-uint16_t buf1[W * 32], buf2[W * 32];
+uint16_t buf1[W * 64], buf2[W * 64];
 
 void flush_cb(lv_display_t* d, const lv_area_t* a, uint8_t* px) {
   lcd->pushImage(a->x1, a->y1, lv_area_get_width(a), lv_area_get_height(a), (const lgfx::rgb565_t*)px);
