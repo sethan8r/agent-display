@@ -73,7 +73,8 @@ Click a topic to expand it.
 - **Header**: number of sessions; yellow **⚠ N** — how many wait for you; clock (taken from the PC);
   gear — settings. A green dot on the gear means a newer firmware is available.
 - **Session card**:
-  - name — from `/rename` or Claude's own title, otherwise the project folder;
+  - name — from `/rename` or Claude's own title, otherwise the project folder. Always one line: a long name
+    scrolls like a ticker (stands 3 s, slides to the end, jumps back);
   - time — how long the current task runs, or how long ago it finished;
   - second line — what it does right now (icon + tool + file or command), or what it waits for;
   - **%** and the thin bar — context window usage. The bar turns yellow at 70 %, red at 90 %,
@@ -95,7 +96,7 @@ Click a topic to expand it.
 | Layout | Fits | Shows |
 |---|---|---|
 | Large | 4 per page | name, time, current action, context % and bar |
-| Compact | 7–9 rows | name, status icon, time, a small vertical context bar |
+| Compact | 7–9 rows (6–7 with large text) | name, status icon, time, a small vertical context bar |
 | Grid | 2 × 4 | short name, status, time, context bar |
 
 Pick one in the settings — each board remembers its own.
@@ -124,7 +125,8 @@ Goes back by **Back** or by itself after 30 s without touches (the thin line und
 |---|---|
 | Theme | dark / light |
 | Language | RU / EN — every text on the screen |
-| Brightness | **Auto** (light sensor, a few steps: day / dim room) or **Manual** slider. The backlight never dims by itself |
+| Text size | 13 / 14 / 16 px for names (14 by default), the rest of the text scales with it |
+| Brightness | slider. The board's light sensor is too weak to be useful, so there is no auto mode; the backlight never dims by itself |
 | Layout | Large / Compact / Grid |
 | Recalibrate touch | tap 4 crosses in the corners, a stylus works best |
 

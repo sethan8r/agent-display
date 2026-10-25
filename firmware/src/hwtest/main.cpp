@@ -31,15 +31,19 @@ static struct { uint32_t lines, bytes, errors, last_parse_us, t_first, t_last; }
 static lv_font_t* font_cache[2][41];
 static const lv_font_t* font(int px, bool semi = false) {
   lv_font_t*& f = font_cache[semi][px];
-  if (!f) f = semi ? lv_tiny_ttf_create_data(inter600, inter600_end - inter600, px)
-                   : lv_tiny_ttf_create_data(inter400, inter400_end - inter400, px);
+  // small glyph cache: the default (128 glyphs per font) runs the heap out with ten fonts
+  if (!f) f = semi ? lv_tiny_ttf_create_data_ex(inter600, inter600_end - inter600, px, LV_FONT_KERNING_NONE, 16)
+                   : lv_tiny_ttf_create_data_ex(inter400, inter400_end - inter400, px, LV_FONT_KERNING_NONE, 16);
   return f;
 }
 
 /* ---------- palette from design/index.html ---------- */
-struct Theme { uint32_t bg, panel, panel2, line, fg, mut, work, done, wait, subs; };
-static const Theme DARK = {0x0D1015, 0x161A21, 0x1E232C, 0x262C37, 0xE9EDF3, 0x8D96A7, 0x4C9AFF, 0x38D18A, 0xFFB020, 0xB385FF};
-static const Theme LIGHT = {0xF2F3F5, 0xFFFFFF, 0xE9ECF0, 0xD6DAE0, 0x14171C, 0x5B6472, 0x1D6FE8, 0x11935A, 0xC97A00, 0x7A45D6};
+// light theme: saturated colors and opaque frames, the TN panel washes pale ones out on white
+struct Theme { uint32_t bg, panel, panel2, line, fg, mut, work, done, wait, subs, wait_ink; lv_opa_t frame, frame_dim, tint; };
+static const Theme DARK = {0x0D1015, 0x161A21, 0x1E232C, 0x262C37, 0xE9EDF3, 0x8D96A7, 0x4C9AFF, 0x38D18A, 0xFFB020, 0xB385FF,
+                           0xFFB020, 204, 115, 43};
+static const Theme LIGHT = {0xF2F3F5, 0xFFFFFF, 0xE9ECF0, 0xCDD2DA, 0x14171C, 0x4A5260, 0x0057FF, 0x00B347, 0xFF8A00, 0x8B2CFF,
+                            0xA85A00, 255, 215, 85};
 static const Theme& th() { return light_theme ? LIGHT : DARK; }
 static lv_color_t hex(uint32_t c) { return lv_color_hex(c); }
 
@@ -100,6 +104,35 @@ static lv_obj_t* dots(lv_obj_t* l, int width) {  // one line, cut with "…"
   lv_obj_set_width(l, width);
   lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_DOTS);
   return l;
+}
+
+// one line that scrolls when too long: stands 3 s at the start, moves to the end, stands 1 s, jumps back
+static constexpr int MARQUEE_PX_S = 25, MARQUEE_START_MS = 3000, MARQUEE_END_MS = 1000;
+
+static void marquee_exec(void* var, int32_t v) {
+  lv_obj_t* l = (lv_obj_t*)var;
+  int32_t over = lv_obj_get_width(l) - lv_obj_get_width(lv_obj_get_parent(l));
+  lv_obj_set_x(l, -LV_CLAMP(0, v - MARQUEE_PX_S * MARQUEE_START_MS / 1000, over));
+}
+
+static lv_obj_t* marquee(lv_obj_t* parent, const char* s, int px, bool semi, uint32_t color, int width) {
+  lv_obj_t* clip = box(parent);
+  lv_obj_set_size(clip, width, lv_font_get_line_height(font(px, semi)));
+  lv_obj_t* l = text(clip, s, px, semi, color);
+  lv_obj_update_layout(l);
+  int32_t over = lv_obj_get_width(l) - width;
+  if (over > 0) {
+    int32_t total = over + MARQUEE_PX_S * (MARQUEE_START_MS + MARQUEE_END_MS) / 1000;
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, l);
+    lv_anim_set_exec_cb(&a, marquee_exec);
+    lv_anim_set_values(&a, 0, total);
+    lv_anim_set_duration(&a, total * 1000 / MARQUEE_PX_S);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
+  }
+  return clip;
 }
 
 static lv_obj_t* column(lv_obj_t* parent, int pad, int gap) {
@@ -284,16 +317,18 @@ static bool blink_on;
 
 static void card(lv_obj_t* scr, int y, uint32_t c, bool dim, bool wait, const char* name, const char* tm, const char* act, int ctx) {
   const Theme& t = th();
-  lv_obj_t* o = fill(box(scr), wait ? lv_color_to_u32(lv_color_mix(hex(t.wait), hex(t.panel), 43)) & 0xFFFFFF : t.panel);
+  lv_obj_t* o = fill(box(scr), wait ? lv_color_to_u32(lv_color_mix(hex(t.wait), hex(t.panel), t.tint)) & 0xFFFFFF : t.panel);
   lv_obj_set_pos(o, 4, y);
   lv_obj_set_size(o, cyd::W - 8, 50);
   lv_obj_set_style_radius(o, 8, 0);
   lv_obj_set_style_border_width(o, 2, 0);
   lv_obj_set_style_border_color(o, hex(c), 0);
-  lv_obj_set_style_border_opa(o, dim ? 115 : 204, 0);
-  lv_obj_set_pos(dots(text(o, name, 14, true, t.fg), 150), 7, 3);
+  lv_obj_set_style_border_opa(o, dim ? t.frame_dim : t.frame, 0);
+  lv_obj_set_pos(marquee(o, name, 14, true, t.fg, 140), 7, 3);
   lv_obj_align(text(o, tm, 11, false, t.mut), LV_ALIGN_TOP_RIGHT, -7, 5);
-  lv_obj_set_pos(dots(text(o, act, 12, false, wait ? t.wait : t.mut), 170), 7, 21);
+  lv_obj_t* a = dots(text(o, act, 12, false, wait ? t.wait_ink : t.mut), 170);
+  lv_obj_set_height(a, lv_font_get_line_height(font(12)));
+  lv_obj_set_pos(a, 7, 21);
   char pct[8];
   snprintf(pct, sizeof pct, "%d%%", ctx);
   lv_obj_align(text(o, pct, 11, false, t.mut), LV_ALIGN_TOP_RIGHT, -7, 22);
@@ -330,8 +365,8 @@ static void build_cards(lv_obj_t* scr) {
   screen_timer = lv_timer_create([](lv_timer_t*) {
     const Theme& t = th();
     blink_on = !blink_on;
-    lv_obj_set_style_border_opa(blink_card, blink_on ? 204 : 56, 0);
-    lv_obj_set_style_bg_color(blink_card, blink_on ? lv_color_mix(hex(t.wait), hex(t.panel), 43) : hex(t.panel), 0);
+    lv_obj_set_style_border_opa(blink_card, blink_on ? t.frame : 56, 0);
+    lv_obj_set_style_bg_color(blink_card, blink_on ? lv_color_mix(hex(t.wait), hex(t.panel), t.tint) : hex(t.panel), 0);
   }, 500, nullptr);
 }
 
@@ -370,7 +405,8 @@ static void show(int n) {
   }
   lv_screen_load(scr);
   if (old) lv_obj_delete(old);
-  Serial.printf("screen %d\n", n);
+  lv_refr_now(nullptr);  // render now, so the heap numbers include the glyphs of this screen
+  Serial.printf("screen %d heap %lu min %lu\n", n, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap());
 }
 
 static void calibrate() {
@@ -414,6 +450,13 @@ static void handle_command(String cmd) {
   else if (cmd == "theme") { light_theme = !light_theme; pending = current; }
   else if (cmd == "usbreset") { memset(&usb, 0, sizeof usb); }
   else if (cmd == "info") { Serial.println(info_text()); return; }
+  else if (cmd == "ldr") {  // 8 s of light sensor readings, 4 per second
+    for (int i = 0; i < 32; i++) {
+      Serial.printf("ldr raw %d mv %lu\n", analogRead(cyd::PIN_LDR), (unsigned long)analogReadMilliVolts(cyd::PIN_LDR));
+      delay(250);
+    }
+    return;
+  }
   else { Serial.printf("err unknown command: %s\n", cmd.c_str()); return; }
   Serial.printf("ok %s\n", cmd.c_str());
 }
