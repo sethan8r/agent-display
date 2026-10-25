@@ -40,7 +40,7 @@ static const lv_font_t* font(int px, bool semi = false) {
 /* ---------- palette from design/index.html ---------- */
 // light theme: saturated colors and opaque frames, the TN panel washes pale ones out on white
 struct Theme { uint32_t bg, panel, panel2, line, fg, mut, work, done, wait, subs, wait_ink; lv_opa_t frame, frame_dim, tint; };
-static const Theme DARK = {0x0D1015, 0x161A21, 0x1E232C, 0x262C37, 0xE9EDF3, 0x8D96A7, 0x2F86FF, 0x1FD97A, 0xFFA600, 0xA366FF,
+static const Theme DARK = {0x0D1015, 0x161A21, 0x1E232C, 0x262C37, 0xE9EDF3, 0x8D96A7, 0x2F86FF, 0x00E36A, 0xFFA600, 0xA366FF,
                            0xFFA600, 230, 140, 50};
 static const Theme LIGHT = {0xF2F3F5, 0xFFFFFF, 0xE9ECF0, 0xCDD2DA, 0x14171C, 0x4A5260, 0x0057FF, 0x00B347, 0xFF8A00, 0x8B2CFF,
                             0xA85A00, 255, 215, 85};
