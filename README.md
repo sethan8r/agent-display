@@ -3,7 +3,6 @@
 **English** | [Русский](README.ru.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Status](https://img.shields.io/badge/status-work%20in%20progress-orange)
 ![Board](https://img.shields.io/badge/board-ESP32--2432S028%20(CYD)-yellow)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-d97757)
 

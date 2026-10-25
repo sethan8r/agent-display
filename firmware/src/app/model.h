@@ -5,7 +5,7 @@
 #include <vector>
 
 constexpr int PROTO = 1;
-constexpr const char* FW_VERSION = "0.1.0";
+constexpr const char* FW_VERSION = "1.0.0";
 
 struct Subagent {
   String type, task;

@@ -261,8 +261,8 @@ https://github.com/sethan8r/agent-display (push по-прежнему тольк
 
 ```
 .claude-plugin/marketplace.json  витрина для /plugin marketplace add (source: ./plugin)
-plugin/                          плагин: хуки, хаб (scripts/), обёртка статус-строки, команда /agent-display:setup
-  .claude-plugin/plugin.json     манифест (name: agent-display, v0.1.0)
+plugin/                          плагин: хуки, хаб (scripts/), обёртка статус-строки, /agent-display:setup и :update-firmware, готовая прошивка (firmware/)
+  .claude-plugin/plugin.json     манифест (name: agent-display, v1.0.0)
 firmware/                        исходники прошивки (PlatformIO) — нужны только мне
 design/                          HTML-макеты экранов 240×320
 docs/protocol.md                 формат JSON хаб → плата (общий язык)
