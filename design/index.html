@@ -287,7 +287,7 @@ const L10N = {
     plugNewer: 'Плагин новее прошивки', fwNewer: 'Прошивка новее плагина', updFw: 'Обнови прошивку', updPlug: 'Обнови плагин', inCC: '— в Claude Code:',
     calibT: 'Калибровка экрана', calibS: 'В углах по очереди появятся стрелки. Нажимай стилусом точно в кончик каждой.', calibGo: 'Нажми, чтобы начать', thinking: 'Думает…', waitSubs: 'Ждёт субагентов',
     ago: d => `${d} назад`, u: [' с', ' мин', ' ч', ' д', 'с', 'м', 'ч', 'д'], wd: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
-    st: { idle: ['Ждёт задачу', 'новая'], work: ['Работает', 'работает'], subs: ['Ждёт субагентов', 'субагенты'], wait: ['Ждёт тебя', 'ждёт'], done: ['Готов', 'готов'], error: ['Ошибка API', 'ошибка'] },
+    st: { idle: ['Ждёт задачу', 'без задачи'], work: ['Работает', 'работает'], subs: ['Ждёт субагентов', 'субагенты'], wait: ['Ждёт тебя', 'ждёт'], done: ['Готов', 'готов'], error: ['Ошибка API', 'ошибка'] },
     wf: { perm: ['Просит разрешение', 'разрешение'], question: ['Задал вопрос', 'вопрос'], plan: ['Ждёт одобрения плана', 'план'] },
     phrases: ['Не пора ли нам повайбкодить?', 'Агенты отдыхают. Твой ход.', 'Тишина. Подозрительно тихо.', 'Claude скучает без задач',
       'Ни одного агента. Кофе?', 'Самое время для нового промта', 'Все ушли на перекур', 'Код сам себя не напишет. Или напишет?',
@@ -305,7 +305,7 @@ const L10N = {
     plugNewer: 'Plugin is newer than firmware', fwNewer: 'Firmware is newer than plugin', updFw: 'Update the firmware', updPlug: 'Update the plugin', inCC: 'in Claude Code:',
     calibT: 'Touch calibration', calibS: 'Arrows will appear in the corners one by one. Tap the exact tip of each with a stylus.', calibGo: 'Tap to start', thinking: 'Thinking…', waitSubs: 'Waiting for subagents',
     ago: d => `${d} ago`, u: [' s', ' min', ' h', ' d', 's', 'm', 'h', 'd'], wd: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
-    st: { idle: ['Waiting for a task', 'new'], work: ['Working', 'working'], subs: ['Waiting for subagents', 'subagents'], wait: ['Waiting for you', 'waiting'], done: ['Done', 'done'], error: ['API error', 'error'] },
+    st: { idle: ['Waiting for a task', 'idle'], work: ['Working', 'working'], subs: ['Waiting for subagents', 'subagents'], wait: ['Waiting for you', 'waiting'], done: ['Done', 'done'], error: ['API error', 'error'] },
     wf: { perm: ['Asks permission', 'permission'], question: ['Asked a question', 'question'], plan: ['Waiting for plan approval', 'plan'] },
     phrases: ['Time to vibe-code?', 'Agents are resting. Your move.', 'Quiet. Suspiciously quiet.', 'Claude is bored without tasks',
       'No agents. Coffee?', 'Perfect time for a new prompt', 'Everyone is on a break', 'Code won\'t write itself. Or will it?',
@@ -355,7 +355,7 @@ function line3(x, T) {
   const subs = x.subagents || [], n = subs.length + (x.subagents_more || 0);
   if (x.status === 'done' && x.summary) return `${icon('check', 11)}${esc(x.summary)}`;
   if (x.status === 'work' && x.quiet >= 120) return `<span class="q">${icon('clock', 11)}${T.quiet} ${dur(x.quiet, false, T)}</span>`;
-  if (x.status === 'subs' && subs[0]) return `<b>${esc(subs[0].type)}</b> · ${esc(subs[0].task)}${n > 1 ? ` +${n - 1}` : ''}`;
+  if (x.status === 'subs' && subs[0]) return `${icon('agent', 11)}${esc(subs[0].type)} · ${esc(subs[0].task)}${n > 1 ? ` +${n - 1}` : ''}`;
   return `${icon('folder', 11)}${esc(x.dir)}${x.model ? ' · ' + esc(x.model) : ''}`;
 }
 const lvl = p => p == null ? '' : p >= 90 ? 'hi' : p >= 70 ? 'mid' : '';

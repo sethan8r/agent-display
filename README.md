@@ -27,7 +27,7 @@ For every open session:
 | **Status** (frame colour) | working · done · **waiting for you** (blinks, visible across the room) · waiting for subagents |
 | **Name** | `/rename` name or AI title, falls back to the project folder |
 | **Now** | current action (`✎ Edit auth.ts`) or what it waits for (`⚠ Bash: npm run build`) |
-| **Time** | "4 min" of work / "done 12 min ago" |
+| **Time** | "4 min" of work / "12 min ago" once done |
 | **Context** | % of the context window used |
 
 At the bottom — your plan limits (5-hour and weekly) with reset time.
@@ -51,7 +51,7 @@ Click a topic to expand it.
 | 🟨 yellow, **blinking** | Waiting for you | needs you: a permission, a question or a plan to approve (see below) |
 | 🟪 purple | Waiting for subagents | Claude finished its part and waits for its background subagents |
 | 🟩 green | Done | finished, waiting for your next prompt |
-| ⬜ grey | Waiting for a task | the session is open, nothing asked yet |
+| ⬜ grey | Waiting for a task | the session is open and idle: nothing asked yet, or you stopped Claude (denied a prompt, pressed Esc) |
 | 🟥 red | API error | the last request to Claude failed and the session stopped |
 
 "Done" and "Waiting for a task" have dimmer frames, so busy sessions stand out.
@@ -71,7 +71,7 @@ Click a topic to expand it.
 <br>
 
 - **Header**: number of sessions; yellow **⚠ N** — how many wait for you; clock (taken from the PC);
-  gear — settings. A green dot on the gear means a newer firmware is available.
+  gear — settings.
 - **Session card**:
   - name — from `/rename` or Claude's own title, otherwise the project folder. Always one line: a long name
     scrolls like a ticker (stands 3 s, slides to the end, jumps back);
@@ -129,12 +129,11 @@ Goes back by **Back** or by itself after 30 s without touches (the thin line und
 | Theme | dark / light |
 | Language | RU / EN — every text on the screen |
 | Text size | 13 / 14 / 16 px for names (14 by default), the rest of the text scales with it |
-| Brightness | slider. The board's light sensor is too weak to be useful, so there is no auto mode; the backlight never dims by itself |
+| Brightness | slider. The light sensor on this board gives no usable readings, so there is no auto mode; the backlight never dims by itself |
 | Layout | Large / Compact / Grid |
 | Recalibrate touch | tap the tip of the arrow in each corner, a stylus works best |
 
-Everything is stored on the board and survives a reboot. The bottom line shows the firmware version
-and a green "Firmware available" when the plugin brings a newer one.
+Everything is stored on the board and survives a reboot. The bottom line shows the firmware version.
 
 </details>
 
@@ -146,7 +145,7 @@ and a green "Firmware available" when the plugin brings a newer one.
 |---|---|---|
 | A joke + "No agents" | the PC is connected, no Claude Code sessions | start one |
 | Hub not connected | no data from the PC for 6 s | turn on the PC, start Claude Code with the plugin, check the USB cable |
-| Plugin is newer than firmware | the board needs an update | in Claude Code: `/agent-display:update-firmware` |
+| Plugin is newer than firmware | the board needs an update | flash the new firmware (see [Install](#install)) |
 | Firmware is newer than plugin | the plugin needs an update | in Claude Code: `/plugin update agent-display` |
 | Touch calibration | first start, or "Recalibrate" in settings | tap the tip of the arrow in each corner |
 
@@ -166,7 +165,7 @@ Status:
 | 📋 | waits for plan approval |
 | 👥 | waits for subagents |
 | ✕ | API error |
-| • | new session, nothing asked yet |
+| • | idle: nothing asked yet, or stopped by you |
 
 Current action:
 
@@ -204,20 +203,30 @@ Format of the data: [docs/protocol.md](docs/protocol.md).
 
 ## Install
 
-You need: Windows/macOS/Linux with Python 3, a flashed board on USB.
+You need: Windows 10/11 with [Python 3](https://www.python.org/downloads/) and Git for Windows (Claude Code uses
+its Git Bash). macOS and Linux should work but haven't been tested.
 
-In Claude Code:
+**1. Flash the board.** With [PlatformIO](https://platformio.org/) installed, plug the board in by micro-USB and run:
+
+```
+cd firmware
+pio run -e main -t upload
+```
+
+On the first start, calibrate the touch screen: tap the tip of the arrow in each corner.
+
+**2. Install the plugin.** In Claude Code:
 
 ```
 /plugin marketplace add sethan8r/agent-display
 /plugin install agent-display@agent-display
 ```
 
-Then run `/agent-display:setup` once: it puts a small wrapper in front of your status line, so the board also gets
-the context and plan limits. Your status line stays exactly as it is; `/agent-display:setup remove` undoes it.
+New sessions start showing up on the board right away.
 
-Firmware updates come with the plugin: `/agent-display:update-firmware`
-(the board tells you when it's time; settings and touch calibration are kept).
+**3. Connect the status line** (once): `/agent-display:setup`. It puts a small wrapper in front of your status line,
+so the board also gets the context and plan limits. Your status line stays exactly as it is;
+`/agent-display:setup remove` undoes it.
 
 ## Hardware
 
@@ -230,22 +239,19 @@ Firmware updates come with the plugin: `/agent-display:update-firmware`
 
 ```
 .claude-plugin/marketplace.json   marketplace entry for /plugin marketplace add
-plugin/                           the Claude Code plugin: hooks, hub, status line wrapper, firmware.bin
+plugin/                           the Claude Code plugin: hooks, hub, status line wrapper
 firmware/                         board firmware (PlatformIO + Arduino + LVGL 9 + LovyanGFX)
 design/                           interactive mockup of the screens — open index.html in a browser
 docs/protocol.md                  JSON format hub → board
 enclosure/                        3D-printable case
 ```
 
-## Roadmap
+## Coming soon
 
-- [x] Features and architecture
-- [x] JSON protocol hub → board
-- [x] Screen mockups
-- [ ] Plugin + hub
-- [ ] Firmware, tested on real boards
-- [ ] 3D-printable case
-- [ ] Later: approve / deny permission requests right from the board
+- **3D-printable case**: models to print (STL / 3MF / STEP) and dimensioned drawings of the board, in
+  [`enclosure/`](enclosure/).
+- **Firmware updates from Claude Code**: `/agent-display:update-firmware` flashes a ready firmware, no PlatformIO
+  needed. Settings and touch calibration are kept.
 
 ## License
 

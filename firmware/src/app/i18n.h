@@ -33,7 +33,7 @@ inline const Strings& ru() {
     s.calib_go = "Нажми, чтобы начать"; s.thinking = "Думает…"; s.wait_subs = "Ждёт субагентов"; s.ago = "%s назад";
     const char* u[8] = {" с", " мин", " ч", " д", "с", "м", "ч", "д"};
     const char* wd[7] = {"вс", "пн", "вт", "ср", "чт", "пт", "сб"};
-    const char* st[6][2] = {{"Ждёт задачу", "новая"}, {"Работает", "работает"}, {"Ждёт субагентов", "субагенты"},
+    const char* st[6][2] = {{"Ждёт задачу", "без задачи"}, {"Работает", "работает"}, {"Ждёт субагентов", "субагенты"},
                             {"Ждёт тебя", "ждёт"}, {"Готов", "готов"}, {"Ошибка API", "ошибка"}};
     const char* wf[3][2] = {{"Просит разрешение", "разрешение"}, {"Задал вопрос", "вопрос"}, {"Ждёт одобрения плана", "план"}};
     const char* ph[16] = {"Не пора ли нам повайбкодить?", "Агенты отдыхают. Твой ход.", "Тишина. Подозрительно тихо.",
@@ -66,7 +66,7 @@ inline const Strings& en() {
     s.calib_go = "Tap to start"; s.thinking = "Thinking…"; s.wait_subs = "Waiting for subagents"; s.ago = "%s ago";
     const char* u[8] = {" s", " min", " h", " d", "s", "m", "h", "d"};
     const char* wd[7] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
-    const char* st[6][2] = {{"Waiting for a task", "new"}, {"Working", "working"}, {"Waiting for subagents", "subagents"},
+    const char* st[6][2] = {{"Waiting for a task", "idle"}, {"Working", "working"}, {"Waiting for subagents", "subagents"},
                             {"Waiting for you", "waiting"}, {"Done", "done"}, {"API error", "error"}};
     const char* wf[3][2] = {{"Asks permission", "permission"}, {"Asked a question", "question"},
                             {"Waiting for plan approval", "plan"}};

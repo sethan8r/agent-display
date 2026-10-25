@@ -9,16 +9,20 @@ import serial  # noqa: E402  (vendored pyserial)
 from serial.tools import list_ports  # noqa: E402
 
 BAUD = 921600
+HELLO_WAIT_S = 5  # a device that doesn't answer is not our board (a printer, another board): let it go
 USB_IDS = {(0x1A86, 0x7523), (0x1A86, 0x55D4), (0x10C4, 0xEA60)}  # CH340, CH9102, CP2102: USB bridges on CYD boards
 
 
 class Board:
     def __init__(self, log):
         self.log, self.port, self.hello, self._next_try, self._rx = log, None, None, 0, b""
+        self.opened_at, self.skip = 0, {}  # device -> time until which it is left alone
 
     def find(self):
         wanted = os.environ.get("AGENT_DISPLAY_PORT")
         for p in list_ports.comports():
+            if self.skip.get(p.device, 0) > time.time():
+                continue
             if p.device == wanted or (not wanted and (p.vid, p.pid) in USB_IDS):
                 return p.device
         return None
@@ -30,6 +34,11 @@ class Board:
         try:
             self.port.write((json.dumps(snap, ensure_ascii=False, separators=(",", ":")) + "\n").encode())
             self._read()
+            if not self.hello and time.time() - self.opened_at > HELLO_WAIT_S:
+                self.log.info("%s never said hello, not our board", self.port.port)
+                self.skip[self.port.port] = time.time() + 60
+                self.close()
+                return False
             return True
         except (serial.SerialException, OSError) as e:
             self.log.warning("board lost: %s", e)
@@ -51,7 +60,8 @@ class Board:
         except (serial.SerialException, OSError) as e:
             self.log.warning("can't open %s: %s", device, e)
             return False
-        self.port, self.hello, self._rx = p, None, b""
+        self.port, self.hello, self._rx, self.opened_at = p, None, b"", time.time()
+        p.write(b'{"t":"ping"}\n')  # ask for a hello right away
         self.log.info("board on %s", device)
         return True
 

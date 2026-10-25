@@ -6,7 +6,7 @@
 namespace ui {
 
 void begin(cyd::LGFX& lcd);
-void show(const Snapshot& s);  // a new snapshot (from the hub, or the demo)
+void show(Snapshot s);  // a new snapshot (from the hub, or the demo); taken by value to move, not copy
 void loop();                   // call from loop() as often as possible
 
 }  // namespace ui

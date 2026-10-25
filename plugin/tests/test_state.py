@@ -102,6 +102,25 @@ class SessionFlow(unittest.TestCase):
                          ("Hub refactoring", "Opus 5.5", 42, 84800, 200000))
         self.assertEqual(snap["limits"], {"5h": {"pct": 24, "reset": 1738425600}})
 
+    def test_review_findings(self):
+        # a command that fails after you approved it ends the prompt (PostToolUseFailure, not PostToolUse)
+        s = self.apply(ev("UserPromptSubmit", 1, prompt="go"),
+                       ev("PermissionRequest", 2, tool_name="Bash", tool_input={"command": "npm test"}),
+                       ev("PostToolUseFailure", 3, tool_name="Bash", error="Exit code 1"))
+        self.assertEqual(s[0]["status"], "work")
+        # a subagent's permission prompt waits for you too, and its answer clears it
+        s = self.apply(ev("PermissionRequest", 4, agent_id="a1", tool_name="Bash", tool_input={"command": "ls"}))
+        self.assertEqual((s[0]["status"], s[0]["wait_for"]), ("wait", "perm"))
+        s = self.apply(ev("PostToolUse", 5, agent_id="a1", tool_name="Bash"))
+        self.assertEqual(s[0]["status"], "work")
+        # after /clear a late status line update for the old session must not bring it back
+        self.st.event(ev("SessionEnd", 6, reason="clear")[0], now=6)
+        self.st.status_line({"session_id": SID, "session_name": "ghost"}, now=7)
+        self.assertEqual(self.st.snapshot(now=7)["sessions"], [])
+        # ...but a resumed session is welcome again
+        s = self.apply(ev("SessionStart", 8, source="resume"))
+        self.assertEqual(len(s), 1)
+
     def test_denied_prompt_and_esc(self):
         """No hook fires when the user denies a prompt or presses Esc: the transcript tells (lines as recorded)."""
         import tempfile

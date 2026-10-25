@@ -1,8 +1,9 @@
 """agent-display hub: the one process that owns the board's COM port.
 
 Claude Code hooks POST their events here (127.0.0.1:47800), the status line wrapper POSTs its JSON, and every
-second (or right after a change) the hub sends the board a full snapshot. Started by session_start.py,
-exits by itself when no Claude Code session is left. GET /snapshot serves the same JSON to the browser mockup.
+second (or right after a change) the hub sends the board a full snapshot. Started by session_start.py or the status
+line wrapper, exits by itself when no Claude Code session is left. GET /snapshot serves the same JSON to the browser
+mockup (design/index.html opened from disk).
 """
 import json
 import logging
@@ -28,7 +29,9 @@ NO_PID_TTL_S = 6 * 3600  # sessions whose process is unknown are dropped after t
 
 
 def data_dir():
-    d = os.environ.get("CLAUDE_PLUGIN_DATA") or os.path.join(os.path.expanduser("~"), ".agent-display")
+    """Hub log and the status line wrapper. Not the plugin data dir: Claude Code deletes that on uninstall, and the
+    user's status line must survive an uninstall."""
+    d = os.environ.get("AGENT_DISPLAY_HOME") or os.path.join(os.path.expanduser("~"), ".claude", "agent-display")
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -53,8 +56,12 @@ def post(path, payload, timeout=0.5):
 
 def ensure_running():
     """Start the hub in the background unless it already answers. Never raises."""
-    if ping():
-        return
+    if not ping():
+        spawn()
+
+
+def spawn():
+    """Start a hub; if one is already running, the new one finds the port taken and exits."""
     exe = sys.executable
     kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=data_dir())
     if procs.WIN:
@@ -87,8 +94,10 @@ class Hub:
         with self.lock:
             s = self.state.status_line(body) if path == "/status" else self.state.event(body)
             if s and not s.pid:
-                if body.get("pid"):  # sent by session_start.py / statusline.py, which know their Claude ancestor
-                    s.pid, s.pid_created = body["pid"], body.get("pid_created")
+                if "pid" in body:  # from session_start.py / statusline.py: their Claude ancestor, or null if not found
+                    pid = body["pid"]
+                    if isinstance(pid, int) and 0 < pid < 1 << 32:
+                        s.pid, s.pid_created = pid, body.get("pid_created")
                 elif path == "/hook":  # an HTTP hook: Claude Code itself is on the other end of this socket
                     pid = procs.tcp_client_pid(client_port, PORT)
                     if pid:
@@ -115,14 +124,17 @@ class Hub:
                 time.sleep(MIN_GAP_S - (now - last_sent))
                 now = time.time()
             self.changed.clear()
-            with self.lock:
-                self.drop_closed(now)
-                self.state.check_interrupts(now)
-                snap = self.state.snapshot(now)
-                if self.state.sessions:
-                    self.empty_since = now
-            self.last_snapshot = snap
-            self.board.send(snap)
+            try:  # one bad event or a flaky port must not take the hub down
+                with self.lock:
+                    self.drop_closed(now)
+                    self.state.check_interrupts(now)
+                    snap = self.state.snapshot(now)
+                    if self.state.sessions:
+                        self.empty_since = now
+                self.last_snapshot = snap
+                self.board.send(snap)
+            except Exception:  # noqa: BLE001
+                self.log.exception("loop")
             last_sent = now
             if now - self.empty_since > IDLE_EXIT_S:
                 self.log.info("no sessions for %d s, exiting", IDLE_EXIT_S)
@@ -132,24 +144,33 @@ class Hub:
 
 def serve(hub):
     class Handler(BaseHTTPRequestHandler):
+        def local(self):
+            # web pages: browsers send Origin; DNS rebinding: a foreign Host. Claude Code and our scripts send neither.
+            host_ok = self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
+            return host_ok and self.headers.get("Origin") in (None, "null")
+
         def do_POST(self):
+            size = int(self.headers.get("Content-Length") or 0)
             try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+                body = json.loads(self.rfile.read(size) or b"{}") if size < 1 << 20 else None
             except ValueError:
                 body = None
-            self.send_response(200)  # answer first and fast: a hook must never wait on the hub
+            self.send_response(200 if self.local() else 403)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(b"{}")
-            if isinstance(body, dict) and self.path in ("/hook", "/status"):
+            # the hook's request completes when this returns (HTTP/1.0, no Content-Length), so the work under the
+            # lock stays tiny; it also keeps the socket open for the PID lookup and one session's hooks in order
+            if self.local() and isinstance(body, dict) and self.path in ("/hook", "/status"):
                 hub.handle(self.path, body, self.client_address[1])
 
         def do_GET(self):
             out = b"agent-display" if self.path == "/ping" else json.dumps(hub.last_snapshot).encode()
-            self.send_response(200 if self.path in ("/ping", "/snapshot") else 404)
-            self.send_header("Access-Control-Allow-Origin", "*")  # the mockup opened from file:// reads /snapshot
+            self.send_response(200 if self.local() and self.path in ("/ping", "/snapshot") else 404)
+            self.send_header("Access-Control-Allow-Origin", "null")  # only pages opened from disk: the mockup
             self.end_headers()
-            self.wfile.write(out)
+            if self.local():
+                self.wfile.write(out)
 
         def log_message(self, *a):
             pass

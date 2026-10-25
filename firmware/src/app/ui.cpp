@@ -38,7 +38,7 @@ Screen screen = MAIN;
 bool calib_from_settings = false, calib_now = false;
 int page = 0;
 String sel, shown_key;
-uint32_t touch_ms = 0, details_ms = 0, toast_ms = 0, phrase_ms = 0;
+uint32_t activity_ms = 0, press_ms = 0, toast_ms = 0, phrase_ms = 0, limits_saved_ms = 0;
 int phrase = -1;
 bool dirty = true, was_empty = false, empty_before = false, blink_on = true;
 
@@ -314,7 +314,7 @@ String reset_label(uint32_t r) {
 
 String ktok(uint32_t n) {
   char b[12];
-  if (n >= 1000000) snprintf(b, sizeof b, "%.1fM", n / 1e6);
+  if (n >= 1000000) snprintf(b, sizeof b, n % 1000000 ? "%.1fM" : "%.0fM", n / 1e6);  // 1M, not 1.0M
   else snprintf(b, sizeof b, "%luk", (unsigned long)((n + 500) / 1000));
   return b;
 }
@@ -335,7 +335,7 @@ void go(Screen s) {
 }
 void cb_open(lv_event_t* e) {
   sel = item_ids[arg(e)];
-  details_ms = millis();
+  activity_ms = millis();
   go(DETAILS);
 }
 void cb_back(lv_event_t*) { go(MAIN); }
@@ -432,9 +432,8 @@ void footer(lv_obj_t* scr) {
   lv_obj_t* f = box(scr, 0, H - FTR, W, FTR);
   lv_obj_set_style_border_side(f, LV_BORDER_SIDE_TOP, 0);
   frame(f, t.line, LV_OPA_COVER, 1);
-  bool fresh = ok() && (snap.h5.has || snap.d7.has);
-  const Limit& a = fresh ? snap.h5 : nvs_h5;
-  const Limit& b = fresh ? snap.d7 : nvs_d7;
+  const Limit& a = nvs_h5;  // the latest known windows, merged in show(); greyed out below when the hub is away
+  const Limit& b = nvs_d7;
   if (!a.has && !b.has) {
     lv_obj_center(text(f, T().lim_no, 11, false, t.dim));
     return;
@@ -645,7 +644,7 @@ void build_details(lv_obj_t* scr, const Session& s) {
   back_header(scr, nullptr);
   lv_obj_align(badge(scr, nullptr, st_label(s, true), mix(c, t.bg, 38), c), LV_ALIGN_TOP_RIGHT, -8, 7);
   // auto-return countdown; created at its current length so a data update doesn't make it jump
-  uint32_t idle = millis() - max(details_ms, touch_ms);
+  uint32_t idle = millis() - activity_ms;
   timer_line = fill(box(scr, 0, HDR, W - W * min(idle, DETAILS_MS) / DETAILS_MS, 2), hex(t.line));
 
   lv_obj_t* col = box(scr, 10, HDR + 7, CW, LIST - 7);
@@ -681,13 +680,16 @@ void build_details(lv_obj_t* scr, const Session& s) {
 
   if (!s.subagents.empty()) {
     text(col, String(T().subagents) + " · " + (int)(s.subagents.size() + s.subagents_more), z.fs, true, t.mut);
-    for (auto& a : s.subagents) {
+    size_t rows = 4 - (s.status == "work" || is_wait(s) ? 2 : 0) - (cfg.size == 2 ? 1 : 0);
+    for (size_t i = 0; i < s.subagents.size() && i < rows; i++) {
+      const Subagent& a = s.subagents[i];
       lv_obj_t* r = hrow(col, CW);
       lv_obj_t* ai = icon_in_row(r, icon::agent, ICON, t.subs, z.ft);
       lv_obj_t* ty = text(r, a.type, z.ft, true, t.fg);
       one_line(text(r, a.task, z.ft, false, t.mut), CW - width_of(ai) - width_of(ty) - 10, z.ft);
     }
-    if (s.subagents_more) text(col, String("+") + s.subagents_more + " " + T().more, z.fs, false, t.mut);
+    int more = s.subagents_more + (s.subagents.size() > rows ? s.subagents.size() - rows : 0);
+    if (more) text(col, String("+") + more + " " + T().more, z.fs, false, t.mut);
   }
 
   lv_obj_t* d = hrow(col, CW);
@@ -869,7 +871,7 @@ void calibrate() {
 }
 
 /* ---------- LVGL glue and timers ---------- */
-uint16_t buf1[W * 64], buf2[W * 64];
+uint16_t buf1[W * 64];  // one buffer: the flush blocks, a second would never be used
 
 void flush_cb(lv_display_t* d, const lv_area_t* a, uint8_t* px) {
   lcd->pushImage(a->x1, a->y1, lv_area_get_width(a), lv_area_get_height(a), (const lgfx::rgb565_t*)px);
@@ -878,12 +880,15 @@ void flush_cb(lv_display_t* d, const lv_area_t* a, uint8_t* px) {
 
 void touch_cb(lv_indev_t*, lv_indev_data_t* d) {
   int32_t x, y;
+  static bool was_pressed = false;
   bool pressed = lcd->getTouch(&x, &y);
   if (pressed) {
     d->point.x = x;
     d->point.y = y;
-    touch_ms = millis();
+    if (!was_pressed) press_ms = millis();
+    activity_ms = millis();
   }
+  was_pressed = pressed;
   d->state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
@@ -905,13 +910,11 @@ void marquee_tick(lv_timer_t*) {
 
 void watch_tick(lv_timer_t*) {
   uint32_t now = millis();
-  if (screen == MAIN || screen == DETAILS) {
-    String k = screen_key();
-    if (k != shown_key) { shown_key = k; dirty = true; }
-  }
+  static bool was_lost = true;
+  if (lost() != was_lost) { was_lost = lost(); dirty = true; }  // the hub went quiet or came back
   if (screen == MAIN && was_empty && now - phrase_ms > PHRASE_MS) dirty = true;
   if (screen == DETAILS) {
-    uint32_t idle = now - max(details_ms, touch_ms);
+    uint32_t idle = now - activity_ms;
     if (idle > DETAILS_MS) go(MAIN);
     else if (timer_line) lv_obj_set_width(timer_line, W - W * idle / DETAILS_MS);
   }
@@ -936,7 +939,7 @@ void begin(cyd::LGFX& l) {
   lv_display_t* disp = lv_display_create(W, H);
   lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
   lv_display_set_flush_cb(disp, flush_cb);
-  lv_display_set_buffers(disp, buf1, buf2, sizeof buf1, LV_DISPLAY_RENDER_MODE_PARTIAL);
+  lv_display_set_buffers(disp, buf1, nullptr, sizeof buf1, LV_DISPLAY_RENDER_MODE_PARTIAL);
   touch = lv_indev_create();
   lv_indev_set_type(touch, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(touch, touch_cb);
@@ -945,22 +948,40 @@ void begin(cyd::LGFX& l) {
   lv_timer_create(watch_tick, 200, nullptr);
 }
 
-void show(const Snapshot& s) {
-  snap = s;
+void show(Snapshot s) {
+  snap = std::move(s);
   have_snap = true;
   rx_ms = millis();
-  auto same = [](const Limit& a, const Limit& b) { return a.has == b.has && a.pct == b.pct && a.reset == b.reset; };
-  if (s.v == PROTO && (s.h5.has || s.d7.has) && !(same(s.h5, nvs_h5) && same(s.d7, nvs_d7))) {
-    nvs_h5 = s.h5;
-    nvs_d7 = s.d7;
-    settings::save_limits(nvs_h5, nvs_d7);
+  if (snap.v == PROTO) {
+    bool window_changed = false, pct_changed = false;
+    auto merge = [&](const Limit& in, Limit& saved) {
+      if (!in.has) return;  // a window the hub doesn't know right now keeps its saved value
+      window_changed |= !saved.has || in.reset != saved.reset;
+      pct_changed |= in.pct != saved.pct;
+      saved = in;
+    };
+    merge(snap.h5, nvs_h5);
+    merge(snap.d7, nvs_d7);
+    // flash wear: a new window right away, a changed percentage at most every 10 minutes
+    if (window_changed || (pct_changed && millis() - limits_saved_ms > 600000)) {
+      settings::save_limits(nvs_h5, nvs_d7);
+      limits_saved_ms = millis();
+    }
+  }
+  if (screen == MAIN || screen == DETAILS) {
+    String k = screen_key();
+    if (k != shown_key) {
+      shown_key = k;
+      dirty = true;
+    }
   }
 }
 
 void loop() {
   if (calib_now) calibrate();
   // never rebuild under the finger: the pressed object would vanish and the tap would be lost
-  if (dirty && lv_indev_get_state(touch) != LV_INDEV_STATE_PRESSED) rebuild();
+  bool pressed = lv_indev_get_state(touch) == LV_INDEV_STATE_PRESSED;
+  if (dirty && (!pressed || millis() - press_ms > 1500)) rebuild();
   lv_timer_handler();
 }
 

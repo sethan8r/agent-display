@@ -11,7 +11,7 @@ as now, and the board also gets this data. Without it the board still works, but
 
 Python: use `py -3` on Windows; if that command is missing, use `python3`.
 
-1. Run `py -3 "${CLAUDE_PLUGIN_ROOT}/scripts/statusline_setup.py" status "${CLAUDE_PLUGIN_DATA}"` and read the result.
+1. Run `py -3 "${CLAUDE_PLUGIN_ROOT}/scripts/statusline_setup.py" status` and read the result.
 2. If the argument is `remove` (here: "$ARGUMENTS"): if it is installed, ask the user to confirm, then run the same
    script with `uninstall` instead of `status` and report what was restored. Stop here.
 3. Otherwise, if it is not installed yet: explain the wrapper in 2–3 sentences, say which status line command they

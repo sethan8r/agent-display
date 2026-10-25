@@ -13,6 +13,7 @@ static char line[32 * 1024 + 1];  // protocol limit for one snapshot
 static size_t line_len = 0;
 static bool overflow = false;
 static uint32_t last_snap = 0;
+static bool linked = false;  // a snapshot seen since boot
 
 static void hello() {
   Serial.printf("{\"t\":\"hello\",\"fw\":\"%s\",\"proto\":%d,\"board\":\"cyd2usb\"}\n", FW_VERSION, PROTO);
@@ -20,12 +21,15 @@ static void hello() {
 
 static void handle_line() {
   JsonDocument doc;
-  if (deserializeJson(doc, line, line_len) || doc["t"] != "snap") return;  // noise at boot, other message types
-  if (millis() - last_snap > SILENCE_MS) hello();  // the hub (re)appeared: tell it which firmware this is
+  if (deserializeJson(doc, line, line_len)) return;  // noise at boot
+  if (doc["t"] == "ping") return hello();  // the hub just opened the port and asks who is there
+  if (doc["t"] != "snap") return;
+  if (!linked || millis() - last_snap > SILENCE_MS) hello();  // the hub (re)appeared: tell it which firmware this is
+  linked = true;
   last_snap = millis();
   Snapshot s;
   protocol::parse(doc.as<JsonVariantConst>(), s);
-  ui::show(s);
+  ui::show(std::move(s));
 }
 
 static void read_serial() {

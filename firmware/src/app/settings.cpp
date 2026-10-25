@@ -26,6 +26,13 @@ static bool get(const char* key, void* data, size_t len) {
 void load(Settings& s) {
   Settings stored;
   if (get("cfg", &stored, sizeof stored) && stored.version == Settings().version) s = stored;
+  // out of range after a corrupted blob or a format change without a version bump: back to defaults
+  Settings d;
+  if (s.theme > 1) s.theme = d.theme;
+  if (s.lang > 1) s.lang = d.lang;
+  if (s.size > 2) s.size = d.size;
+  if (s.layout > 2) s.layout = d.layout;
+  if (s.bright < 10 || s.bright > 100) s.bright = d.bright;
 }
 
 void save(const Settings& s) { put_if_changed("cfg", &s, sizeof s); }

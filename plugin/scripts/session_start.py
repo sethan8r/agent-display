@@ -19,11 +19,10 @@ def main():
     except ValueError:
         return
     event["pid"], event["pid_created"] = procs.claude_ancestor()
-    if os.environ.get("CLAUDE_PLUGIN_DATA"):
-        try:  # the plugin may have been updated to a new folder: keep the status line wrapper pointing at it
-            statusline_setup.refresh(os.environ["CLAUDE_PLUGIN_DATA"])
-        except OSError:
-            pass
+    try:  # the plugin may have been updated: keep an installed status line wrapper current
+        statusline_setup.refresh()
+    except (OSError, ValueError):
+        pass
     hub.ensure_running()
     for _ in range(30):  # a freshly started hub needs a moment to open its port
         if hub.post("/hook", event):

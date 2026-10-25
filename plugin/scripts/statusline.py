@@ -1,7 +1,8 @@
 """Status line wrapper: shows the user's own status line unchanged, then passes Claude Code's JSON on to the hub.
 
-statusline_setup.py copies this file into the plugin data dir (it survives plugin updates) and makes it the
-statusLine command. Only the status line gets context %, model, session name and plan limits, hence the wrapper.
+statusline_setup.py copies this file into ~/.claude/agent-display/ (it outlives plugin updates and uninstalls) and
+makes it the statusLine command. Only the status line gets context %, model, session name and plan limits.
+Without the plugin it still prints the user's own status line.
 """
 import json
 import os
@@ -33,15 +34,14 @@ def main():
         cfg = {}
     run_original((cfg.get("original") or {}).get("command"), raw)  # theirs first: it is what they look at
     try:
-        os.environ.setdefault("CLAUDE_PLUGIN_DATA", HERE)  # this copy lives in the plugin data dir; a hub we start logs there
         sys.path.insert(0, os.path.join(cfg["plugin_root"], "scripts"))
         import hub
         import procs
         data = json.loads(raw)
         data["pid"], data["pid_created"] = procs.claude_ancestor()
-        hub.ensure_running()
-        hub.post("/status", data, timeout=0.3)
-    except Exception:  # noqa: BLE001 — the plugin must never break the status line
+        if not hub.post("/status", data, timeout=0.3):
+            hub.spawn()  # the hub isn't running: start it, the next update gets through
+    except Exception:  # noqa: BLE001 — the plugin must never break the status line (or it was uninstalled)
         pass
 
 

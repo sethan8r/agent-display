@@ -145,6 +145,7 @@ class State:
     def __init__(self):
         self.sessions = {}
         self.limits = {}  # "5h" / "7d" -> {"pct", "reset"}
+        self.ended = set()  # a status line update still on its way after SessionEnd must not bring the session back
 
     def session(self, sid, now):
         return self.sessions.get(sid) or self.sessions.setdefault(sid, Session(sid, now))
@@ -157,6 +158,13 @@ class State:
             return None
         if name == "SessionEnd":
             self.sessions.pop(sid, None)
+            if len(self.ended) > 500:
+                self.ended.clear()
+            self.ended.add(sid)
+            return None
+        if name == "SessionStart":
+            self.ended.discard(sid)  # resumed
+        elif sid in self.ended:
             return None
         s = self.session(sid, now)
         s.last_event = now
@@ -171,6 +179,7 @@ class State:
                     s.status = "work"
             else:
                 s.status, s.since, s.wait_for, s.summary, s.icon, s.action = "work", now, None, None, None, None
+                s.pending.clear()
         elif name == "PreToolUse" and not sub:
             if tool == "AskUserQuestion":
                 s.wait("question", question_text(inp))
@@ -181,7 +190,7 @@ class State:
                 s.icon, s.action = ICONS.get(tool, "other"), action(tool, inp, s.cwd)
                 if tool in ("Agent", "Task"):
                     s.pending.append((inp.get("subagent_type") or "", inp.get("description") or ""))
-        elif name == "PermissionRequest" and not sub:
+        elif name == "PermissionRequest":  # from a subagent too: its prompt waits for you all the same
             if tool == "AskUserQuestion":
                 s.wait("question", question_text(inp))
             elif tool == "ExitPlanMode":
@@ -190,10 +199,11 @@ class State:
                 s.wait("perm", action(tool, inp, s.cwd))
         elif name == "Notification" and ev.get("notification_type") == "permission_prompt" and s.status != "wait":
             s.wait("perm", ev.get("message") or "")
-        elif name == "PostToolUse" and not sub:
+        elif name in ("PostToolUse", "PostToolUseFailure"):  # a failed command ends a prompt just the same
             if s.status == "wait":  # the prompt was answered
                 s.work(now)
-            self._fallback_context(s, now)
+            if not sub:
+                self._fallback_context(s, now)
         elif name == "SubagentStart":
             typ = ev.get("agent_type") or ""
             i = next((i for i, p in enumerate(s.pending) if p[0] == typ), 0 if s.pending else None)
@@ -205,6 +215,7 @@ class State:
                        if isinstance(t, dict) and t.get("type") == "subagent" and t.get("status") == "running"]
             s.subagents = {t.get("id"): (t.get("agent_type") or "", t.get("description") or "") for t in running}
             s.wait_for = s.icon = s.action = None
+            s.pending.clear()
             if running:
                 s.status = "subs"
             else:
@@ -218,7 +229,7 @@ class State:
         """Apply the JSON Claude Code passes to the status line: name, model, context, plan limits."""
         now = now or time.time()
         sid = d.get("session_id")
-        if not sid:
+        if not sid or sid in self.ended:
             return None
         s = self.session(sid, now)
         s.status_line_at = now
