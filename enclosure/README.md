@@ -11,6 +11,7 @@ USB pointing down.
 |---|---|
 | `*.stl` / `*.3mf` | ready to slice and print |
 | `*.step` | source geometry, if you want to modify it |
+| `drawings/` | dimensioned drawings of the board and the case (PDF + PNG): outline, mounting holes, screen window, LDR, buttons, ports — measured with calipers on a real board |
 | `photos/` | how it looks assembled |
 
 ## Print settings
