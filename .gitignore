@@ -1,0 +1,10 @@
+# PlatformIO
+firmware/.pio/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / editors
+.DS_Store
+Thumbs.db

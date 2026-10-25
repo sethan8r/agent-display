@@ -1,0 +1,14 @@
+{
+  "name": "agent-display",
+  "owner": {
+    "name": "sethan8r",
+    "email": "me@sethan8r.ru"
+  },
+  "plugins": [
+    {
+      "name": "agent-display",
+      "source": "./plugin",
+      "description": "Shows the status of every running Claude Code session on an ESP32 touch display"
+    }
+  ]
+}

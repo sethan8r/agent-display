@@ -1,0 +1,12 @@
+{
+  "name": "agent-display",
+  "displayName": "Agent Display",
+  "version": "0.1.0",
+  "description": "Shows the status of every running Claude Code session on an ESP32 touch display",
+  "author": {
+    "name": "sethan8r",
+    "email": "me@sethan8r.ru"
+  },
+  "repository": "https://github.com/sethan8r/agent-display",
+  "license": "MIT"
+}
