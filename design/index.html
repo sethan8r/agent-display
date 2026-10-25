@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-display — макеты экранов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- page chrome ---------- */
+:root { --p-bg:#0A0C10; --p-card:#12161C; --p-line:#232934; --p-fg:#E6EAF0; --p-mut:#8A93A3; --p-acc:#D97757; }
+:root[data-theme="light"] { --p-bg:#E8EBF0; --p-card:#FFFFFF; --p-line:#D5DAE1; --p-fg:#161A20; --p-mut:#5C6573; --p-acc:#C25E3E; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--p-bg); color:var(--p-fg); font:14px/1.45 Inter, system-ui, sans-serif; transition:background .3s; }
+header.top { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:18px 24px; border-bottom:1px solid var(--p-line); }
+header.top h1 { font-size:17px; margin:0; font-weight:700; }
+header.top h1 span { color:var(--p-acc); }
+header.top .sub { color:var(--p-mut); font-size:13px; }
+.tabs { margin-left:auto; display:flex; gap:4px; background:var(--p-card); border:1px solid var(--p-line); border-radius:10px; padding:3px; }
+.tabs button { border:0; background:none; color:var(--p-mut); font:inherit; font-weight:500; padding:6px 14px; border-radius:7px; cursor:pointer; }
+.tabs button.on { background:var(--p-acc); color:#fff; }
+main { padding:24px; }
+.live { display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; }
+.panel { flex:1; min-width:300px; max-width:560px; display:flex; flex-direction:column; gap:14px; }
+.box { background:var(--p-card); border:1px solid var(--p-line); border-radius:12px; padding:14px 16px; }
+.box h3 { margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--p-mut); font-weight:600; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chips button { font:inherit; font-size:13px; border:1px solid var(--p-line); background:transparent; color:var(--p-fg); border-radius:8px; padding:5px 10px; cursor:pointer; }
+.chips button:hover { border-color:var(--p-mut); }
+.chips button.on { border-color:var(--p-acc); background:color-mix(in srgb, var(--p-acc) 16%, transparent); }
+.hint { color:var(--p-mut); font-size:13px; margin:0; }
+.log { font:12px/1.6 'JetBrains Mono', monospace; color:var(--p-mut); white-space:pre; overflow:hidden; min-height:8em; }
+.log .in { color:#38D18A; }
+pre.json { font:11.5px/1.5 'JetBrains Mono', monospace; margin:0; max-height:340px; overflow:auto; color:var(--p-fg); }
+details summary { cursor:pointer; color:var(--p-mut); font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+details[open] summary { margin-bottom:10px; }
+.gallery { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:28px 20px; }
+.gi { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.gl { font-size:13px; color:var(--p-mut); text-align:center; }
+.gl b { color:var(--p-fg); font-weight:600; display:block; }
+
+/* the case: a stand-in for the 3D-printed enclosure */
+.case { background:linear-gradient(160deg, #2A2E35, #1A1D22); border-radius:26px; padding:34px 20px 44px; position:relative;
+        box-shadow:0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06); }
+.case::before { content:""; position:absolute; top:13px; left:50%; width:8px; height:8px; margin-left:-60px; border-radius:50%; background:#0B0C0E; box-shadow:inset 0 0 0 1px #3A3F48; }
+.case::after { content:""; position:absolute; bottom:-1px; left:50%; width:44px; height:10px; margin-left:-22px; background:#0B0C0E; border-radius:6px 6px 0 0; }
+.case .lbl { position:absolute; top:10px; left:0; right:0; text-align:center; font:600 10px/14px Inter; letter-spacing:.2em; color:#5D636E; text-transform:uppercase; }
+.case .z2 { zoom:2; }
+.gi .case { padding:22px 12px 28px; border-radius:18px; }
+.gi .case::before, .gi .case .lbl { display:none; }
+.gi .z2 { zoom:1.25; }
+@media (max-width:620px) { main { padding:14px; } .case { padding:26px 12px 32px; } .case .z2 { zoom:1.35; } }
+
+/* ---------- the board screen: every px here is a real display pixel ---------- */
+.scr { width:240px; height:320px; overflow:hidden; position:relative; display:flex; flex-direction:column;
+       background:var(--bg); color:var(--fg); font:12px/15px Inter, system-ui, sans-serif; user-select:none; }
+.scr.dark  { --bg:#0D1015; --panel:#161A21; --panel2:#1E232C; --line:#262C37; --fg:#E9EDF3; --mut:#8D96A7; --dim:#566070;
+             --work:#4C9AFF; --done:#38D18A; --wait:#FFB020; --subs:#B385FF; --idle:#7C8594; --error:#FF5D5D; }
+.scr.light { --bg:#F2F3F5; --panel:#FFFFFF; --panel2:#E9ECF0; --line:#D6DAE0; --fg:#14171C; --mut:#5B6472; --dim:#A0A7B2;
+             --work:#1D6FE8; --done:#11935A; --wait:#C97A00; --subs:#7A45D6; --idle:#878E99; --error:#D53333; }
+.scr button { font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+.scr [data-a] { cursor:pointer; }
+.ic { display:inline-block; vertical-align:-2px; flex:none; }
+.st-idle { --c:var(--idle); } .st-work { --c:var(--work); } .st-subs { --c:var(--subs); }
+.st-wait { --c:var(--wait); } .st-done { --c:var(--done); } .st-error { --c:var(--error); }
+.ell { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+
+.hdr { height:30px; flex:none; display:flex; align-items:center; padding-left:8px; border-bottom:1px solid var(--line); gap:6px; }
+.hdr .ttl { font-weight:600; font-size:13px; display:flex; align-items:center; gap:5px; flex:1; }
+.hdr .cnt { background:var(--panel2); color:var(--mut); border-radius:8px; padding:0 6px; font-size:11px; line-height:16px; font-weight:600; }
+.hdr .wchip { background:var(--wait); color:#1A1200; border-radius:8px; padding:0 6px 0 4px; font-size:11px; line-height:16px; font-weight:700; display:flex; align-items:center; gap:2px; }
+.boff .hdr .wchip { background:color-mix(in srgb, var(--wait) 35%, transparent); }
+.hdr .clk { color:var(--mut); font-variant-numeric:tabular-nums; font-weight:500; }
+.hdr .gear { width:36px; height:30px; display:flex; align-items:center; justify-content:center; color:var(--mut); position:relative; }
+.hdr .gear .dot { position:absolute; top:6px; right:8px; width:6px; height:6px; border-radius:50%; background:var(--done); }
+.hdr .back { height:30px; padding:0 10px 0 4px; display:flex; align-items:center; gap:2px; color:var(--work); font-weight:600; }
+.hdr .ttl2 { font-weight:600; font-size:13px; }
+.hdr .chip { margin-right:8px; margin-left:auto; color:var(--c); background:color-mix(in srgb, var(--c) 15%, transparent); border-radius:8px; padding:0 7px; line-height:18px; font-size:11px; font-weight:600; }
+
+.list { flex:1; padding:4px 4px 0; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+/* large */
+.card { height:50px; flex:none; border:2px solid color-mix(in srgb, var(--c) 80%, transparent); border-radius:8px; background:var(--panel);
+        padding:4px 7px 0; display:flex; flex-direction:column; }
+.st-done.card, .st-idle.card { border-color:color-mix(in srgb, var(--c) 45%, transparent); }
+.card .r1 { display:flex; gap:6px; align-items:baseline; height:17px; }
+.card .nm { font-size:14px; line-height:17px; font-weight:600; flex:1; }
+.card .tm, .row .tm { color:var(--mut); font-size:11px; font-variant-numeric:tabular-nums; flex:none; }
+.card .r2 { display:flex; gap:4px; align-items:center; height:15px; color:var(--mut); margin-top:1px; }
+.card .r2 .ic, .row > .ic, .cell .ic { color:var(--c); }
+.card .r2 .pc { margin-left:auto; padding-left:4px; font-size:11px; font-variant-numeric:tabular-nums; flex:none; }
+.card .bar { margin-top:5px; }
+.st-wait .r2 .ac, .st-error .r2 .ac { color:var(--c); font-weight:500; }
+.st-wait.card, .st-wait.row, .st-wait.cell { background:color-mix(in srgb, var(--wait) 17%, var(--panel)); }
+.boff .st-wait.card, .boff .st-wait.cell { border-color:color-mix(in srgb, var(--wait) 22%, transparent); background:var(--panel); }
+.boff .st-wait.row { background:var(--panel); }
+.boff .st-wait.row .stripe { opacity:.25; }
+/* compact */
+.l-compact { gap:2px; }
+.row { height:26px; flex:none; display:flex; align-items:center; gap:6px; background:var(--panel); border-radius:5px; padding-right:5px; overflow:hidden; }
+.row .stripe { width:4px; align-self:stretch; background:var(--c); flex:none; }
+.st-done.row .stripe, .st-idle.row .stripe { opacity:.5; }
+.row .nm { flex:1; font-weight:600; font-size:12.5px; }
+.vbar { width:4px; height:16px; border-radius:2px; background:var(--panel2); position:relative; overflow:hidden; flex:none; }
+.vbar i { position:absolute; left:0; right:0; bottom:0; background:var(--fg); opacity:.55; }
+/* grid */
+.l-grid { display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:50px; align-content:start; }
+.cell { border:2px solid color-mix(in srgb, var(--c) 80%, transparent); border-radius:8px; background:var(--panel); padding:4px 6px 0; display:flex; flex-direction:column; min-width:0; }
+.st-done.cell, .st-idle.cell { border-color:color-mix(in srgb, var(--c) 45%, transparent); }
+.cell .nm { font-weight:600; font-size:12.5px; line-height:16px; }
+.cell .r2 { display:flex; align-items:center; gap:3px; color:var(--mut); font-size:11px; height:15px; }
+.st-wait.cell .r2 { color:var(--wait); font-weight:600; }
+.cell .bar { margin-top:5px; }
+
+.bar { height:3px; border-radius:2px; background:var(--panel2); overflow:hidden; flex:none; }
+.bar i { display:block; height:100%; background:var(--fg); opacity:.55; border-radius:2px; }
+.bar i.mid, .vbar i.mid { background:var(--wait); opacity:1; } .bar i.hi, .vbar i.hi { background:var(--error); opacity:1; }
+.bar.na { background:repeating-linear-gradient(90deg, var(--panel2) 0 3px, transparent 3px 6px); }
+
+.pager { height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:2px 4px; }
+.pg { width:84px; height:30px; border-radius:7px; background:var(--panel2) !important; display:flex; align-items:center; justify-content:center; gap:4px; }
+.pg:disabled { opacity:.3; cursor:default; }
+.pg .pw { display:flex; align-items:center; gap:2px; background:var(--wait); color:#1A1200; font-size:11px; font-weight:700; border-radius:6px; padding:0 4px 0 3px; line-height:15px; }
+.boff .pg .pw { background:color-mix(in srgb, var(--wait) 35%, transparent); }
+.pn { color:var(--mut); font-size:11px; font-variant-numeric:tabular-nums; }
+
+.ftr { height:36px; flex:none; border-top:1px solid var(--line); display:flex; gap:10px; padding:5px 8px 0; }
+.ftr .lim { flex:1; min-width:0; }
+.ftr .lr { display:flex; align-items:baseline; gap:4px; font-size:11px; height:15px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ftr .lr b { font-weight:600; color:var(--mut); }
+.ftr .lr .v { font-weight:700; font-size:12px; }
+.ftr .lr .rt { margin-left:auto; color:var(--mut); display:flex; align-items:center; gap:2px; }
+.ftr .lr .rs { color:var(--done); font-weight:600; }
+.ftr .bar { height:4px; margin-top:4px; }
+.ftr .bar i { background:var(--work); opacity:1; }
+.ftr.stale { filter:grayscale(1); opacity:.5; }
+.ftr.nodata { align-items:center; justify-content:center; padding:0; color:var(--dim); font-size:11px; }
+
+.empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 20px; gap:8px; color:var(--mut); }
+.empty .ph { color:var(--fg); font-size:15px; line-height:19px; font-weight:600; margin-top:4px; }
+.empty .sub { font-size:12px; }
+.empty .sub2 { font-size:11px; color:var(--dim); margin-top:6px; }
+.empty.warn > .ic { color:var(--wait); }
+.empty code { font:500 11px/15px 'JetBrains Mono', monospace; background:var(--panel2); color:var(--fg); padding:5px 7px; border-radius:6px; }
+
+.tmr { height:2px; flex:none; background:transparent; }
+.tmr i { display:block; height:100%; background:var(--line); }
+.det { flex:1; padding:6px 10px 0; display:flex; flex-direction:column; gap:5px; overflow:hidden; }
+.det .dn { font-size:14px; line-height:17px; font-weight:600; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.det .ds { color:var(--c); font-weight:600; display:flex; align-items:center; gap:4px; }
+.det .ds span { color:var(--mut); font-weight:400; }
+.det .dc { display:flex; justify-content:space-between; color:var(--mut); font-size:11px; margin-top:2px; font-variant-numeric:tabular-nums; }
+.det .dc b { color:var(--fg); font-weight:600; }
+.det .bar { height:5px; }
+.det .da { background:var(--panel); border-radius:6px; padding:4px 7px; display:flex; gap:5px; margin-top:2px; }
+.det .da .ic { margin-top:2px; color:var(--c); }
+.det .da div { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.det .da.st-wait { background:color-mix(in srgb, var(--wait) 17%, var(--panel)); color:var(--fg); }
+.boff .det .da.st-wait { background:var(--panel); }
+.det .sh { color:var(--mut); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-top:2px; }
+.det .sa { display:flex; gap:5px; align-items:center; height:15px; }
+.det .sa .ic { color:var(--subs); }
+.det .sa b { font-weight:600; flex:none; }
+.det .sa span { color:var(--mut); }
+.det .more { color:var(--mut); font-size:11px; padding-left:17px; }
+.det .mt { display:flex; gap:5px; align-items:center; color:var(--mut); height:15px; }
+
+.set { flex:1; padding:6px 10px 0; display:flex; flex-direction:column; }
+.set .lb { color:var(--mut); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin:5px 0 4px; }
+.seg { display:flex; background:var(--panel2); border-radius:8px; padding:2px; height:34px; }
+.seg button { flex:1; border-radius:6px; font-weight:500; color:var(--mut); }
+.seg button.on { background:var(--panel); color:var(--fg); font-weight:600; box-shadow:0 0 0 1px var(--line); }
+.sl { display:flex; align-items:center; gap:8px; height:30px; color:var(--mut); }
+.sl.dis input { opacity:.35; }
+.sl span { width:34px; text-align:right; font-size:11px; font-variant-numeric:tabular-nums; }
+.sl input { flex:1; accent-color:var(--work); height:20px; }
+.btn { margin-top:8px; height:36px; border-radius:8px; background:var(--panel2) !important; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:600; }
+.ver { height:34px; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--dim); font-size:11px; line-height:14px; }
+.ver .upd { color:var(--done); font-weight:600; display:flex; align-items:center; gap:3px; }
+.toast { position:absolute; left:20px; right:20px; bottom:46px; background:var(--done); color:#04210F; border-radius:8px; text-align:center; font-weight:600; padding:6px; }
+
+.calib { flex:1; position:relative; background:#000; color:#fff; }
+.calib .ct { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center; padding:0 40px; color:#9AA3B2; }
+.calib .ct b { color:#fff; font-size:14px; }
+.calib .cn { font-variant-numeric:tabular-nums; color:#fff; }
+.cross { position:absolute; width:40px; height:40px; }
+.cross::before, .cross::after { content:""; position:absolute; background:#FF5D5D; }
+.cross::before { left:19px; top:4px; width:2px; height:32px; }
+.cross::after { top:19px; left:4px; height:2px; width:32px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>agent-display <span>·</span> макеты экранов</h1>
+  <div class="sub">CYD 240×320, вертикально · рисуют тот же JSON, что и плата (<a href="../docs/protocol.md" style="color:inherit">протокол v1</a>)</div>
+  <div class="tabs"><button data-tab="live" class="on">Живая плата</button><button data-tab="gallery">Все экраны</button></div>
+</header>
+
+<main>
+  <section id="tab-live" class="live">
+    <div class="case"><div class="lbl">agent display</div><div class="z2" id="dev"></div></div>
+    <div class="panel">
+      <div class="box">
+        <h3>Ситуация</h3>
+        <div class="chips" id="scen"></div>
+      </div>
+      <div class="box" id="simbox">
+        <h3>Симуляция</h3>
+        <div class="chips" id="simctl"></div>
+        <p class="hint" style="margin-top:10px">Тыкай по экрану как по плате: агент → подробности, шестерёнка → настройки (тема, раскладка, яркость), ▲▼ — листать. Масштаб ×2.</p>
+      </div>
+      <div class="box">
+        <h3>USB Serial</h3>
+        <div class="log" id="log"></div>
+      </div>
+      <div class="box">
+        <details id="jsonbox"><summary>Последний снимок JSON</summary><pre class="json" id="json"></pre></details>
+      </div>
+    </div>
+  </section>
+  <section id="tab-gallery" class="gallery" hidden></section>
+</main>
+
+<script>
+'use strict';
+const PROTO = 1, FW = '0.1.0';
+const TZ = -new Date().getTimezoneOffset() * 60;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const rid = () => Math.random().toString(16).slice(2, 10);
+const nowSec = () => Math.floor(Date.now() / 1000);
+
+/* ---------- icons (on the board: FontAwesome glyphs baked into the LVGL font) ---------- */
+const IC = {
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  run: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+  read: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  find: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/>',
+  web: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/>',
+  agent: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+  warn: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  question: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  plan: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  x: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  dot: '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  up: '<polyline points="18 15 12 9 6 15"/>',
+  down: '<polyline points="6 9 12 15 18 9"/>',
+  back: '<polyline points="15 18 9 12 15 6"/>',
+  plug: '<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/><line x1="3" y1="3" x2="21" y2="21"/>',
+  folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+  cpu: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  coffee: '<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>',
+};
+const icon = (n, s = 12) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${IC[n] || IC.dot}</svg>`;
+
+/* ---------- formatting: this is what the firmware will do ---------- */
+function dur(sec, short) {
+  sec = Math.max(0, Math.floor(sec));
+  if (sec < 60) return short ? `${sec}с` : `${sec} с`;
+  const m = Math.floor(sec / 60);
+  if (m < 60) return short ? `${m}м` : `${m} мин`;
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (h < 24) return short ? `${h}ч${mm ? mm + 'м' : ''}` : `${h} ч${mm ? ' ' + mm + ' мин' : ''}`;
+  return `${Math.floor(h / 24)}${short ? 'д' : ' д'}`;
+}
+const hhmm = (t, tz) => { const d = new Date((t + tz) * 1000); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+const resetLabel = (r, now, tz) => r - now < 86400 ? hhmm(r, tz) : `${WD[new Date((r + tz) * 1000).getUTCDay()]} ${hhmm(r, tz)}`;
+const ktok = n => n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1000)}k`;
+
+const ST = {
+  idle: { label: 'Ждёт задачу', short: 'новая', icon: 'dot' },
+  work: { label: 'Работает', short: 'работает', icon: 'run' },
+  subs: { label: 'Ждёт субагентов', short: 'субагенты', icon: 'agent' },
+  wait: { label: 'Ждёт тебя', short: 'ждёт', icon: 'warn' },
+  done: { label: 'Готов', short: 'готов', icon: 'check' },
+  error: { label: 'Ошибка API', short: 'ошибка', icon: 'x' },
+};
+const WAIT = {
+  perm: { label: 'Просит разрешение', short: 'разрешение', icon: 'warn' },
+  question: { label: 'Задал вопрос', short: 'вопрос', icon: 'question' },
+  plan: { label: 'Ждёт одобрения плана', short: 'план', icon: 'plan' },
+};
+const info = s => (s.status === 'wait' && WAIT[s.wait_for]) || ST[s.status] || { label: s.status, short: s.status, icon: 'dot' };
+function timeText(s, now, short) {
+  if (s.status === 'idle') return '';
+  const d = dur(now - s.since, short);
+  return (s.status === 'done' || s.status === 'error') && !short ? `${d} назад` : d;
+}
+function line2(s) {
+  const n = (s.subagents || []).length + (s.subagents_more || 0);
+  switch (s.status) {
+    case 'work': return [s.icon || 'run', s.action || 'Думает…'];
+    case 'wait': return [info(s).icon, s.action || info(s).label];
+    case 'subs': return ['agent', `Ждёт субагентов: ${n}`];
+    default: return [info(s).icon, info(s).label];
+  }
+}
+const lvl = p => p == null ? '' : p >= 90 ? 'hi' : p >= 70 ? 'mid' : '';
+const bar = p => p == null ? '<div class="bar na"></div>' : `<div class="bar"><i class="${lvl(p)}" style="width:${p}%"></i></div>`;
+const vbar = p => `<div class="vbar"><i class="${lvl(p)}" style="height:${p ?? 0}%"></i></div>`;
+
+const PHRASES = ['Не пора ли нам повайбкодить?', 'Агенты отдыхают. Твой ход.', 'Тишина. Подозрительно тихо.',
+  'Claude скучает без задач', 'Ни одного агента. Кофе?', 'Самое время для нового промта',
+  'Все ушли на перекур', 'Код сам себя не напишет. Или напишет?'];
+
+/* list layouts: item height + gap → how many fit into the list area (254 px, or 220 with the pager) */
+const LAYOUTS = {
+  large: {
+    cap: a => Math.floor(a / 54),
+    item: (x, now) => {
+      const [ic, txt] = line2(x);
+      return `<div class="card st-${x.status}" data-a="open" data-v="${x.id}">
+        <div class="r1"><span class="nm ell">${esc(x.name)}</span><span class="tm">${timeText(x, now)}</span></div>
+        <div class="r2">${icon(ic, 11)}<span class="ac ell">${esc(txt)}</span><span class="pc">${x.ctx == null ? '' : x.ctx + '%'}</span></div>
+        ${bar(x.ctx)}</div>`;
+    },
+  },
+  compact: {
+    cap: a => Math.floor((a - 2) / 28),
+    item: (x, now) => `<div class="row st-${x.status}" data-a="open" data-v="${x.id}"><i class="stripe"></i>${icon(info(x).icon, 11)}
+        <span class="nm ell">${esc(x.name)}</span><span class="tm">${timeText(x, now, true)}</span>${vbar(x.ctx)}</div>`,
+  },
+  grid: {
+    cap: a => Math.floor(a / 54) * 2,
+    item: (x, now) => {
+      const t = timeText(x, now, true);
+      return `<div class="cell st-${x.status}" data-a="open" data-v="${x.id}"><div class="nm ell">${esc(x.name)}</div>
+        <div class="r2">${icon(info(x).icon, 10)}<span class="ell">${info(x).short}${t ? ' · ' + t : ''}</span></div>${bar(x.ctx)}</div>`;
+    },
+  },
+};
+
+/* ---------- the board ---------- */
+class Board {
+  constructor(el, opt = {}) {
+    this.el = el; this.log = opt.log || (() => {}); this.onTheme = opt.onTheme || (() => {}); this.static = !!opt.static;
+    this.ui = Object.assign({ screen: 'main', layout: 'large', theme: 'dark', brightAuto: true, bright: 80, page: 0, sel: null, detAt: 0, calib: 0 }, opt.ui);
+    this.snap = null; this.lastRx = 0; this.nvs = opt.nvs || null; this.blink = true;
+    el.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && b.tagName !== 'INPUT') this.act(b.dataset.a, b.dataset.v); });
+    el.addEventListener('input', e => {
+      if (e.target.dataset.a !== 'bright') return;
+      this.ui.bright = +e.target.value; this.el.querySelector('.sl span').textContent = this.ui.bright + '%'; this.applyBright();
+    });
+  }
+  get lost() { return !this.snap || Date.now() - this.lastRx > 6000; }
+  get ok() { return !this.lost && this.snap.v === PROTO; }
+  feed(snap) {
+    if (this.lost) this.log(JSON.stringify({ t: 'hello', fw: FW, proto: PROTO, board: 'cyd2usb' }), true);
+    this.snap = snap; this.lastRx = Date.now();
+    if (snap.v === PROTO && snap.limits) this.nvs = { limits: Object.assign({}, this.nvs?.limits, snap.limits) };
+  }
+  act(a, v) {
+    const u = this.ui; u.detAt = Date.now();
+    switch (a) {
+      case 'open': u.screen = 'details'; u.sel = v; break;
+      case 'back': u.screen = 'main'; break;
+      case 'settings': u.screen = 'settings'; break;
+      case 'up': u.page--; break;
+      case 'down': u.page++; break;
+      case 'theme': u.theme = v; this.onTheme(v); break;
+      case 'layout': u.layout = v; u.page = 0; break;
+      case 'bauto': u.brightAuto = v === '1'; break;
+      case 'calib': u.screen = 'calib'; u.calib = 0; break;
+      case 'cross': if (++u.calib >= 4) { u.screen = 'settings'; u.toastAt = Date.now(); } break;
+    }
+    this.render();
+  }
+  render() {
+    const u = this.ui;
+    let body;
+    if (u.screen === 'calib') body = this.calibHTML();
+    else if (u.screen === 'settings') body = this.settingsHTML();
+    else if (this.lost) body = this.lostHTML();
+    else if (this.snap.v !== PROTO) body = this.mismatchHTML();
+    else if (u.screen === 'details') {
+      const s = this.snap.sessions.find(x => x.id === u.sel);
+      if (!s || (!this.static && Date.now() - u.detAt > 30000)) { u.screen = 'main'; return this.render(); }
+      body = this.detailsHTML(s);
+    } else body = this.snap.sessions.length ? this.mainHTML() : this.emptyHTML();
+    this.el.innerHTML = `<div class="scr ${u.theme} ${this.blink ? '' : 'boff'}">${body}</div>`;
+    this.applyBright();
+  }
+  tick() { this.blink = !this.blink; if (this.ui.screen !== 'settings' && this.ui.screen !== 'calib') this.render(); }
+  applyBright() {
+    const u = this.ui, scr = this.el.firstElementChild;
+    if (scr) scr.style.filter = u.brightAuto ? '' : `brightness(${(0.3 + 0.7 * u.bright / 100).toFixed(2)})`;
+  }
+
+  hdr() {
+    const s = this.snap, ok = this.ok;
+    const n = ok ? s.sessions.length + (s.sessions_more || 0) : 0;
+    const w = ok ? s.sessions.filter(x => x.status === 'wait').length : 0;
+    return `<div class="hdr"><div class="ttl">Агенты${n ? ` <span class="cnt">${n}</span>` : ''}${w ? ` <span class="wchip">${icon('warn', 10)}${w}</span>` : ''}</div>
+      <div class="clk">${this.lost ? '--:--' : hhmm(s.now, s.tz)}</div>
+      <button class="gear" data-a="settings">${icon('gear', 16)}${ok && s.fw_update ? '<i class="dot"></i>' : ''}</button></div>`;
+  }
+  ftr() {
+    const s = this.snap, ok = this.ok, lim = (ok && s.limits) || this.nvs?.limits;
+    if (!lim) return '<div class="ftr nodata">Лимиты: нет данных</div>';
+    const now = ok ? s.now : null;
+    const col = (k, label) => {
+      const w = lim[k];
+      if (!w) return `<div class="lim"><div class="lr"><b>${label}</b><span class="v">—</span></div>${bar(0)}</div>`;
+      const done = now != null && now >= w.reset;
+      return `<div class="lim"><div class="lr"><b>${label}</b>${done ? '<span class="rs">сброшен</span>' : `<span class="v">${w.pct}%</span>`}
+        ${done || now == null ? '' : `<span class="rt">${icon('refresh', 9)}${resetLabel(w.reset, now, s.tz)}</span>`}</div>
+        <div class="bar"><i class="${lvl(w.pct)}" style="width:${done ? 0 : w.pct}%"></i></div></div>`;
+    };
+    return `<div class="ftr ${ok ? '' : 'stale'}">${col('5h', '5ч')}${col('7d', 'Нед')}</div>`;
+  }
+  mainHTML() {
+    const s = this.snap, u = this.ui, ss = s.sessions, L = LAYOUTS[u.layout];
+    const capNo = L.cap(254), capP = L.cap(220), paged = ss.length > capNo, per = paged ? capP : capNo;
+    const pages = Math.ceil(ss.length / per);
+    u.page = Math.min(Math.max(0, u.page), pages - 1);
+    const from = u.page * per, waits = ss.map((x, i) => x.status === 'wait' ? i : -1).filter(i => i >= 0);
+    const above = waits.filter(i => i < from).length, below = waits.filter(i => i >= from + per).length;
+    const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d, 14)}${n ? `<span class="pw">${icon('warn', 9)}${n} ${d === 'up' ? 'выше' : 'ниже'}</span>` : ''}</button>`;
+    return this.hdr()
+      + `<div class="list l-${u.layout}">${ss.slice(from, from + per).map(x => L.item(x, s.now)).join('')}</div>`
+      + (paged ? `<div class="pager">${pb('up', above, u.page === 0)}<span class="pn">${u.page + 1} / ${pages}${s.sessions_more ? ` · +${s.sessions_more}` : ''}</span>${pb('down', below, u.page === pages - 1)}</div>` : '')
+      + this.ftr();
+  }
+  detailsHTML(x) {
+    const s = this.snap, i = info(x), [ic, txt] = line2(x), t = timeText(x, s.now);
+    const left = this.static ? 100 : Math.max(0, 100 - (Date.now() - this.ui.detAt) / 300);
+    const subs = x.subagents || [];
+    return `<div class="hdr"><button class="back" data-a="back">${icon('back', 14)}Назад</button>
+        <span class="chip st-${x.status}">${i.short}</span></div>
+      <div class="tmr"><i style="width:${left}%"></i></div>
+      <div class="det st-${x.status}">
+        <div class="dn">${esc(x.name)}</div>
+        <div class="ds">${icon(i.icon, 11)}${i.label}${t ? ` <span>· ${t}</span>` : ''}</div>
+        <div class="dc"><span>Контекст</span><span>${x.tokens != null ? `<b>${ktok(x.tokens)}</b> / ${ktok(x.tokens_max)} · ` : ''}${x.ctx == null ? 'нет данных' : `<b>${x.ctx}%</b>`}</span></div>
+        ${bar(x.ctx)}
+        ${x.status === 'work' || x.status === 'wait' ? `<div class="da st-${x.status}">${icon(ic, 11)}<div>${esc(txt)}</div></div>` : ''}
+        ${subs.length ? `<div class="sh">Субагенты · ${subs.length + (x.subagents_more || 0)}</div>`
+          + subs.map(a => `<div class="sa">${icon('agent', 11)}<b>${esc(a.type)}</b><span class="ell">${esc(a.task)}</span></div>`).join('')
+          + (x.subagents_more ? `<div class="more">+${x.subagents_more} ещё</div>` : '') : ''}
+        <div class="mt">${icon('folder', 11)}<span class="ell">${esc(x.dir)}</span></div>
+        <div class="mt">${x.model ? `${icon('cpu', 11)}<span>${esc(x.model)}</span> ·` : ''} ${icon('clock', 11)}<span>открыта ${dur(s.now - x.started)}</span></div>
+      </div>${this.ftr()}`;
+  }
+  settingsHTML() {
+    const u = this.ui, fwu = this.ok && this.snap.fw_update;
+    const seg = (a, opts, cur) => `<div class="seg">${opts.map(([v, l]) => `<button data-a="${a}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    return `<div class="hdr"><button class="back" data-a="back">${icon('back', 14)}Назад</button><span class="ttl2">Настройки</span></div>
+      <div class="set">
+        <div class="lb">Тема</div>${seg('theme', [['dark', 'Тёмная'], ['light', 'Светлая']], u.theme)}
+        <div class="lb">Яркость</div>${seg('bauto', [['1', 'Авто'], ['0', 'Вручную']], u.brightAuto ? '1' : '0')}
+        <div class="sl ${u.brightAuto ? 'dis' : ''}">${icon('sun', 13)}<input type="range" min="10" max="100" value="${u.bright}" data-a="bright" ${u.brightAuto ? 'disabled' : ''}><span>${u.brightAuto ? 'день' : u.bright + '%'}</span></div>
+        <div class="lb">Раскладка</div>${seg('layout', [['large', 'Крупно'], ['compact', 'Компактно'], ['grid', 'Сетка']], u.layout)}
+        <button class="btn" data-a="calib">${icon('target', 14)}Перекалибровать экран</button>
+      </div>
+      <div class="ver">${fwu ? `<span class="upd">${icon('download', 11)}Есть прошивка ${esc(fwu)}</span>` : ''}<span>Прошивка ${FW} · протокол v${PROTO}</span></div>
+      ${Date.now() - (u.toastAt || 0) < 2500 ? '<div class="toast">Калибровка сохранена</div>' : ''}`;
+  }
+  calibHTML() {
+    const [x, y] = [[20, 20], [220, 20], [220, 300], [20, 300]][this.ui.calib];
+    return `<div class="calib"><div class="ct"><b>Калибровка экрана</b><span>Нажми стилусом точно в центр крестика</span><span class="cn">${this.ui.calib + 1} / 4</span></div>
+      <button class="cross" data-a="cross" style="left:${x - 20}px;top:${y - 20}px"></button></div>`;
+  }
+  emptyHTML() {
+    return this.hdr() + `<div class="empty">${icon('coffee', 30)}<div class="ph">${PHRASES[Math.floor(Date.now() / 12000) % PHRASES.length]}</div>
+      <div class="sub">Агентов нет</div></div>` + this.ftr();
+  }
+  lostHTML() {
+    return this.hdr() + `<div class="empty">${icon('plug', 30)}<div class="ph">Хаб не подключён</div>
+      <div class="sub">Комп выключен или Claude Code работает без плагина agent-display</div>
+      ${this.nvs ? '<div class="sub2">Лимиты внизу давно не обновлялись</div>' : ''}</div>` + this.ftr();
+  }
+  mismatchHTML() {
+    const newer = this.snap.v > PROTO;
+    return this.hdr() + `<div class="empty warn">${icon('warn', 30)}<div class="ph">${newer ? 'Плагин новее прошивки' : 'Прошивка новее плагина'}</div>
+      <div class="sub">${newer ? 'Обнови прошивку' : 'Обнови плагин'} — в Claude Code:</div>
+      <code>${newer ? '/agent-display:update-firmware' : '/plugin update agent-display'}</code></div>` + this.ftr();
+  }
+}
+
+/* ---------- fake hub: same rules as the real one (docs/protocol.md) ---------- */
+const trunc = (s, n) => { const a = Array.from(s); return a.length > n ? a.slice(0, n - 1).join('') + '…' : s; };
+function toProto(s) {
+  const o = { id: s.id, name: trunc(s.name, 40), status: s.status };
+  if (s.status === 'wait' && s.wait_for) o.wait_for = s.wait_for;
+  o.since = s.since;
+  if (s.icon && (s.status === 'work' || s.status === 'wait')) o.icon = s.icon;
+  if (s.action && (s.status === 'work' || s.status === 'wait')) o.action = trunc(s.action, 80);
+  if (s.ctx != null) { o.ctx = Math.round(s.ctx); o.tokens = Math.round(s.ctx / 100 * s.tokens_max); o.tokens_max = s.tokens_max; }
+  if (s.model) o.model = s.model;
+  o.dir = trunc(s.dir, 40); o.started = s.started;
+  if (s.subagents.length) { o.subagents = s.subagents.slice(0, 4); if (s.subagents.length > 4) o.subagents_more = s.subagents.length - 4; }
+  return o;
+}
+function buildSnap(d, now) {
+  const snap = { t: 'snap', v: d.v || PROTO, now, tz: TZ };
+  if (d.limits) snap.limits = d.limits;
+  snap.sessions = d.sessions.slice(0, 20).map(toProto);
+  if (d.sessions.length > 20) snap.sessions_more = d.sessions.length - 20;
+  if (d.fw_update) snap.fw_update = d.fw_update;
+  return snap;
+}
+
+const ACTIONS = [['edit', 'Edit hub/serial.py'], ['run', 'Bash: pytest -q'], ['read', 'Read docs/protocol.md'], ['find', 'Grep: session_id'],
+  ['web', 'WebFetch code.claude.com/docs/en/hooks'], ['edit', 'Write firmware/src/ui.cpp'], ['run', 'Bash: pio run -e cyd2usb'],
+  ['read', 'Read plugin/hub/state.py'], ['find', 'Glob: **/*.tsx'], ['run', 'PowerShell: Get-Process claude'], ['edit', 'Edit README.ru.md']];
+const PERMS = ['Bash: git push origin main', 'Bash: rm -rf node_modules', 'Edit .env.production', 'Bash: npm publish', 'WebFetch github.com/espressif'];
+const QUESTIONS = ['Какую раскладку сделать по умолчанию?', 'Удалить старые миграции или оставить?', 'Пушить в main или сделать PR?'];
+const PLANS = ['План: хаб + хуки, 5 шагов', 'План миграции на LVGL 9'];
+const SUBTASKS = [['Explore', 'Найти конфиг роутера'], ['Explore', 'Где парсится session_id'], ['general-purpose', 'Проверить доки по хукам'],
+  ['Plan', 'Спланировать прошивку'], ['Explore', 'Найти все вызовы Serial']];
+const NAMES = [['agent-display', 'VSCodeProjects/agent-display'], ['Рефакторинг хаба', 'agent-display/plugin'], ['shop-backend', 'work/shop-backend'],
+  ['Миграция БД на Postgres', 'work/shop-backend'], ['landing', 'site/landing'], ['Фикс тача XPT2046', 'VSCodeProjects/agent-display'],
+  ['api-gateway', 'work/api-gateway'], ['Telegram-бот для заказов', 'pets/order-bot'], ['infra', 'work/infra'], ['ml-pipeline', 'lab/ml-pipeline'],
+  ['Обновить зависимости', 'work/shop-frontend'], ['docs', 'work/docs']];
+const MODELS = ['Opus 5.5', 'Opus 5.5', 'Sonnet 5.5', 'Haiku 5.5', 'Fable 5.1'];
+
+const mk = (o, t) => Object.assign({ id: rid(), name: 'agent-display', dir: 'VSCodeProjects/agent-display', status: 'idle', since: t, started: t - 1800,
+  model: 'Opus 5.5', ctx: null, tokens_max: 200000, subagents: [] }, o);
+const LIM = t => ({ '5h': { pct: 42, reset: t + 2 * 3600 + 17 * 60 }, '7d': { pct: 87, reset: t + 3 * 86400 + 5 * 3600 } });
+const demo = t => [
+  mk({ id: 'd1a0c3f2', name: 'agent-display', status: 'work', since: t - 260, icon: 'edit', action: 'Edit firmware/src/ui.cpp', ctx: 42, started: t - 5400 }, t),
+  mk({ id: 'd2b1e4a7', name: 'Рефакторинг хаба', dir: 'agent-display/plugin', status: 'wait', wait_for: 'perm', since: t - 95, icon: 'ask', action: 'Bash: git push origin main', ctx: 67, started: t - 3000 }, t),
+  mk({ id: 'd3c2f5b8', name: 'shop-backend', dir: 'work/shop-backend', status: 'subs', since: t - 410, ctx: 23, model: 'Sonnet 5.5', tokens_max: 1000000,
+    subagents: [{ type: 'Explore', task: 'Найти все вызовы оплаты' }, { type: 'Explore', task: 'Где парсится webhook' }, { type: 'Plan', task: 'План рефакторинга платежей' }] }, t),
+  mk({ id: 'd4d3a6c9', name: 'Миграция БД на Postgres', dir: 'work/shop-backend', status: 'done', since: t - 720, ctx: 91, started: t - 9000 }, t),
+  mk({ id: 'd5e4b7da', name: 'Telegram-бот для заказов', dir: 'pets/order-bot', status: 'wait', wait_for: 'question', since: t - 150, icon: 'ask', action: 'Пушить в main или сделать PR?', ctx: 34, model: 'Sonnet 5.5' }, t),
+  mk({ id: 'd6f5c8eb', name: 'landing', dir: 'site/landing', status: 'work', since: t - 40, icon: 'run', action: 'Bash: npm run build', ctx: 12, model: 'Haiku 5.5', started: t - 60 }, t),
+];
+function many(n, t, waitAt) {
+  const st = ['work', 'done', 'work', 'idle', 'subs', 'work', 'done', 'error', 'work', 'done'];
+  return Array.from({ length: n }, (_, i) => {
+    const [name, dir] = NAMES[i % NAMES.length], status = i === waitAt ? 'wait' : st[i % st.length];
+    const [ic, action] = ACTIONS[i % ACTIONS.length];
+    return mk({ name: i < NAMES.length ? name : `${name} #${Math.floor(i / NAMES.length) + 1}`, dir, status, wait_for: status === 'wait' ? 'perm' : undefined,
+      since: t - 30 - i * 97, icon: status === 'wait' ? 'ask' : ic, action: status === 'wait' ? PERMS[0] : action, ctx: (i * 37) % 100, model: MODELS[i % MODELS.length],
+      subagents: status === 'subs' ? [{ type: 'Explore', task: SUBTASKS[i % SUBTASKS.length][1] }] : [] }, t);
+  });
+}
+const SCEN = {
+  live: { label: 'Живая симуляция' },
+  one: { label: 'Один агент', build: t => ({ sessions: [demo(t)[0]], limits: LIM(t) }) },
+  many: { label: '12 агентов, ждущий за экраном', build: t => ({ sessions: many(12, t, 10), limits: LIM(t) }) },
+  twenty: { label: '23 агента', build: t => ({ sessions: many(23, t, 21), limits: LIM(t) }) },
+  empty: { label: 'Агентов нет', build: t => ({ sessions: [], limits: LIM(t) }) },
+  lost: { label: 'Хаб не подключён' },
+  fresh: { label: 'Свежая плата без лимитов', build: t => ({ sessions: demo(t).slice(0, 2) }) },
+  reset: { label: 'Лимит 5ч сброшен', build: t => ({ sessions: demo(t).slice(0, 3), limits: { '5h': { pct: 96, reset: t - 60 }, '7d': { pct: 64, reset: t + 5 * 86400 } } }) },
+  long: { label: 'Длинные названия', build: t => ({ limits: LIM(t), sessions: [
+    mk({ name: 'Очень длинное название сессии, которое точно не влезет ни в одну строку экрана', status: 'work', since: t - 3700, icon: 'run',
+      action: 'Bash: npm run build -- --mode=production --verbose && npm run test:e2e -- --headless --reporter=dot', ctx: 77 }, t),
+    mk({ name: 'Переписать авторизацию на OAuth 2.1 с PKCE', status: 'wait', wait_for: 'plan', since: t - 600, icon: 'ask', action: 'План: 7 шагов — токены, refresh, миграция пользователей, тесты', ctx: 95,
+      subagents: SUBTASKS.map(([type, task]) => ({ type, task })).concat([{ type: 'Explore', task: 'Ещё один' }, { type: 'Explore', task: 'И ещё' }]) }, t),
+    ...demo(t).slice(2, 4)] }) },
+  update: { label: 'Есть новая прошивка', build: t => ({ sessions: demo(t).slice(0, 3), limits: LIM(t), fw_update: '0.2.0' }) },
+  mismatch: { label: 'Плагин новее прошивки', build: t => ({ sessions: demo(t), limits: LIM(t), v: 2 }) },
+};
+
+/* live simulation */
+const sim = { t: nowSec(), paused: false, speed: 1, sessions: [], limits: null };
+function simReset() { sim.t = nowSec(); sim.sessions = demo(sim.t).map(s => ({ ...s, id: rid() })); sim.limits = LIM(sim.t); }
+function startTask(s) { s.status = 'work'; s.since = sim.t; s.wait_for = null; [s.icon, s.action] = pick(ACTIONS); if (s.ctx == null) s.ctx = 3; }
+function askUser(s, kind = pick(['perm', 'perm', 'question', 'plan'])) {
+  if (s.status !== 'work') startTask(s);
+  s.status = 'wait'; s.wait_for = kind; s.icon = 'ask';
+  s.action = kind === 'perm' ? pick(PERMS) : kind === 'question' ? pick(QUESTIONS) : pick(PLANS);
+}
+function newSession() { const [name, dir] = pick(NAMES); return mk({ name, dir, model: pick(MODELS), started: sim.t, since: sim.t }, sim.t); }
+function simStep() {
+  sim.t += sim.speed;
+  if (sim.paused) return;
+  for (const s of sim.sessions) {
+    const r = Math.random();
+    if (s.status === 'work') {
+      s.ctx = s.ctx + Math.random() * 0.5 * sim.speed;
+      if (s.ctx >= 97) { s.ctx = 18; s.action = 'Сжимает контекст (/compact)'; s.icon = 'other'; continue; }
+      if (r < .03) askUser(s);
+      else if (r < .06) { s.status = s.subagents.length ? 'subs' : 'done'; s.since = sim.t; }
+      else if (r < .09 && s.subagents.length < 6) { const [type, task] = pick(SUBTASKS); s.subagents.push({ type, task }); s.icon = 'agent'; s.action = `Agent: ${task}`; }
+      else if (r < .35) [s.icon, s.action] = pick(ACTIONS);
+      if (s.subagents.length && Math.random() < .04) s.subagents.shift();
+    } else if (s.status === 'subs') { if (r < .12) { s.subagents.shift(); if (!s.subagents.length) { s.status = 'done'; s.since = sim.t; } } }
+    else if (s.status === 'wait') { if (r < .06) { s.status = 'work'; s.wait_for = null; [s.icon, s.action] = pick(ACTIONS); } }
+    else if (s.status === 'idle') { if (r < .05) startTask(s); }
+    else if (s.status === 'done') { if (r < .015) startTask(s); }
+    else if (s.status === 'error') { if (r < .05) startTask(s); }
+  }
+  const quiet = sim.sessions.filter(s => s.status === 'done' || s.status === 'idle');
+  if (sim.sessions.length > 3 && quiet.length && Math.random() < .015) sim.sessions.splice(sim.sessions.indexOf(pick(quiet)), 1);
+  if (sim.sessions.length < 9 && Math.random() < .02) sim.sessions.push(newSession());
+  if (Math.random() < .004) { const w = sim.sessions.filter(s => s.status === 'work'); if (w.length) { const s = pick(w); s.status = 'error'; s.since = sim.t; } }
+  sim.limits['5h'].pct = Math.min(100, sim.limits['5h'].pct + (Math.random() < .1 ? 1 : 0));
+}
+
+/* ---------- page wiring ---------- */
+const logLines = [];
+function serialLog(line, fromBoard) {
+  const ts = new Date().toLocaleTimeString('ru-RU');
+  logLines.push(`<span class="${fromBoard ? 'in' : ''}">${ts} ${fromBoard ? '← плата' : '→ хаб  '} ${esc(line)}</span>`);
+  if (logLines.length > 8) logLines.shift();
+  $('#log').innerHTML = logLines.join('\n');
+}
+const syncTheme = th => { document.documentElement.dataset.theme = th; };
+const live = new Board($('#dev'), { log: serialLog, onTheme: syncTheme });
+let scen = 'live', scenData = null;
+
+function pump() {
+  let snap = null;
+  if (scen === 'live') snap = buildSnap({ sessions: sim.sessions, limits: sim.limits }, sim.t);
+  else if (scen !== 'lost') snap = buildSnap(scenData, nowSec());
+  if (snap) {
+    live.feed(snap);
+    const line = JSON.stringify(snap);
+    serialLog(`snap · агентов: ${snap.sessions.length} · ${new Blob([line]).size} Б`);
+    if ($('#jsonbox').open) { const pre = $('#json'), y = pre.scrollTop; pre.textContent = JSON.stringify(snap, null, 2); pre.scrollTop = y; }
+  }
+  live.render();
+}
+function setScen(k) {
+  scen = k; scenData = SCEN[k].build ? SCEN[k].build(nowSec()) : null;
+  if (live.ui.screen !== 'settings') live.ui.screen = 'main';
+  live.ui.page = 0;
+  if (k === 'lost') live.lastRx = 0;
+  if (k === 'fresh') live.nvs = null;
+  $('#simbox').style.opacity = k === 'live' ? 1 : .45;
+  document.querySelectorAll('#scen button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  pump();
+}
+$('#scen').innerHTML = Object.entries(SCEN).map(([k, v]) => `<button data-k="${k}">${v.label}</button>`).join('');
+$('#scen').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setScen(b.dataset.k); });
+
+const SIMCTL = [
+  ['pause', () => sim.paused ? '▶ Продолжить' : '⏸ Пауза', () => { sim.paused = !sim.paused; }],
+  ['speed', () => sim.speed === 1 ? '⏩ Время ×30' : '⏵ Время ×1', () => { sim.speed = sim.speed === 1 ? 30 : 1; }],
+  ['add', () => '+ Новая сессия', () => sim.sessions.push(newSession())],
+  ['perm', () => 'Попросить разрешение', () => { const c = sim.sessions.filter(s => s.status !== 'wait'); if (c.length) askUser(pick(c), 'perm'); }],
+  ['question', () => 'Задать вопрос', () => { const c = sim.sessions.filter(s => s.status !== 'wait'); if (c.length) askUser(pick(c), 'question'); }],
+  ['close', () => 'Закрыть окно', () => { if (sim.sessions.length) sim.sessions.splice(Math.floor(Math.random() * sim.sessions.length), 1); }],
+  ['reset', () => '↺ Сначала', () => simReset()],
+];
+function drawSimCtl() { $('#simctl').innerHTML = SIMCTL.map(([k, l]) => `<button data-k="${k}">${l()}</button>`).join(''); }
+$('#simctl').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (scen !== 'live') setScen('live');
+  SIMCTL.find(c => c[0] === b.dataset.k)[2](); drawSimCtl(); pump();   // events go out immediately, not on the next tick
+});
+
+/* gallery */
+const GAL = [
+  ['Главный · Крупно', 'demo', {}], ['Главный · Компактно', 'many', { layout: 'compact' }], ['Главный · Сетка', 'demo', { layout: 'grid' }],
+  ['Не влезли: ждущий ниже', 'many', {}], ['Подробности · субагенты', 'demo', { screen: 'details', sel: 'd3c2f5b8' }],
+  ['Подробности · вопрос', 'demo', { screen: 'details', sel: 'd5e4b7da' }], ['Настройки', 'update', { screen: 'settings' }],
+  ['Агентов нет', 'empty', {}], ['Хаб не подключён', 'lost', {}], ['Нужна перепрошивка', 'mismatch', {}],
+  ['Лимит сброшен', 'reset', {}], ['Калибровка тача', 'demo', { screen: 'calib' }],
+  ['Светлая · Крупно', 'demo', { theme: 'light' }], ['Светлая · Компактно', 'many', { theme: 'light', layout: 'compact' }],
+  ['Светлая · Подробности', 'demo', { theme: 'light', screen: 'details', sel: 'd2b1e4a7' }], ['Длинные названия', 'long', { layout: 'large' }],
+];
+const t0 = nowSec();
+const gboards = GAL.map(([title, sc, ui]) => {
+  const wrap = document.createElement('div'); wrap.className = 'gi';
+  wrap.innerHTML = `<div class="case"><div class="z2"></div></div><div class="gl"><b>${title}</b></div>`;
+  $('#tab-gallery').append(wrap);
+  const data = sc === 'demo' ? { sessions: demo(t0), limits: LIM(t0) } : SCEN[sc].build ? SCEN[sc].build(t0) : null;
+  const b = new Board(wrap.querySelector('.z2'), { ui, static: true, nvs: sc === 'lost' ? { limits: LIM(t0) } : null });
+  return { b, data };
+});
+const feedGallery = () => gboards.forEach(({ b, data }) => { if (data) b.feed(buildSnap(data, nowSec())); b.render(); });
+
+document.querySelector('.tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('#tab-live').hidden = b.dataset.tab !== 'live'; $('#tab-gallery').hidden = b.dataset.tab !== 'gallery';
+  location.hash = b.dataset.tab;
+});
+if (location.hash === '#gallery') document.querySelector('[data-tab="gallery"]').click();
+
+simReset(); drawSimCtl(); setScen('live'); feedGallery();
+setInterval(() => { if (scen === 'live') simStep(); pump(); feedGallery(); }, 1000);
+setInterval(() => { live.tick(); gboards.forEach(g => g.b.tick()); }, 500);   // blink rate of "waits for you"
+</script>
+</body>
+</html>
