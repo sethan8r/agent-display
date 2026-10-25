@@ -41,6 +41,8 @@ details[open] summary { margin-bottom:10px; }
 .gi { display:flex; flex-direction:column; align-items:center; gap:10px; }
 .gl { font-size:13px; color:var(--p-mut); text-align:center; }
 .gl b { color:var(--p-fg); font-weight:600; display:block; }
+.gnote { grid-column:1 / -1; color:var(--p-mut); font-size:14px; max-width:920px; margin-top:6px; }
+.gnote b { color:var(--p-fg); }
 
 /* the case: a stand-in for the 3D-printed enclosure */
 .case { background:linear-gradient(160deg, #2A2E35, #1A1D22); border-radius:26px; padding:34px 20px 44px; position:relative;
@@ -109,6 +111,15 @@ body.cap { background:transparent; }
 .card .r2 .ic, .row > .ic, .cell .ic { color:var(--c); }
 .card .r2 .pc { margin-left:auto; padding-left:4px; font-size:var(--fs); font-variant-numeric:tabular-nums; flex:none; }
 .card .bar { margin-top:5px; }
+/* idea: third line of a card when there is room */
+.card .r3 { height:calc(var(--fs) + 4px); line-height:calc(var(--fs) + 4px); font-size:var(--fs); color:var(--mut); margin-top:2px;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .r3 .ic { vertical-align:-1px; margin-right:3px; }
+.card .r3 b { color:var(--fg); font-weight:600; }
+.card .r3 .q { color:var(--wait-ink); font-weight:600; }
+.card .r2.two { height:auto; align-items:flex-start; }
+.card .r2.two .ac { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+                    line-height:calc(var(--ft) + 3px); }
 .st-wait .r2 .ac, .st-error .r2 .ac { color:var(--c); font-weight:500; }
 .st-wait .r2 .ac { color:var(--wait-ink); }
 .st-wait.card, .st-wait.row, .st-wait.cell { background:color-mix(in srgb, var(--wait) var(--tint), var(--panel)); }
@@ -272,7 +283,7 @@ const L10N = {
     agents: 'Агенты', back: 'Назад', settings: 'Настройки', theme: 'Тема', lang: 'Язык', size: 'Размер текста',
     layout: 'Раскладка', large: 'Крупно', compact: 'Компактно', grid: 'Сетка', recal: 'Перекалибровать экран',
     calibSaved: 'Калибровка сохранена', fwAvail: 'Есть прошивка', fw: 'Прошивка', proto: 'протокол', ctx: 'Контекст', nodata: 'нет данных',
-    subagents: 'Субагенты', more: 'ещё', opened: 'открыта', limNo: 'Лимиты: нет данных', h5: '5ч', wk: 'Нед', reset: 'сброшен',
+    subagents: 'Субагенты', more: 'ещё', opened: 'открыта', limNo: 'Лимиты: нет данных', h5: '5ч', wk: 'Нед', reset: 'сброшен', quiet: 'тишина',
     noAgents: 'Агентов нет', hubLost: 'Хаб не подключён',
     hubLostSub: 'Комп выключен или Claude Code работает без плагина agent-display', limStale: 'Лимиты внизу давно не обновлялись',
     plugNewer: 'Плагин новее прошивки', fwNewer: 'Прошивка новее плагина', updFw: 'Обнови прошивку', updPlug: 'Обнови плагин', inCC: '— в Claude Code:',
@@ -290,7 +301,7 @@ const L10N = {
     agents: 'Agents', back: 'Back', settings: 'Settings', theme: 'Theme', lang: 'Language', size: 'Text size',
     layout: 'Layout', large: 'Large', compact: 'Compact', grid: 'Grid', recal: 'Recalibrate touch',
     calibSaved: 'Calibration saved', fwAvail: 'Firmware available', fw: 'Firmware', proto: 'protocol', ctx: 'Context', nodata: 'no data',
-    subagents: 'Subagents', more: 'more', opened: 'open', limNo: 'Limits: no data', h5: '5h', wk: 'Wk', reset: 'reset',
+    subagents: 'Subagents', more: 'more', opened: 'open', limNo: 'Limits: no data', h5: '5h', wk: 'Wk', reset: 'reset', quiet: 'quiet',
     noAgents: 'No agents', hubLost: 'Hub not connected',
     hubLostSub: 'PC is off or Claude Code runs without the agent-display plugin', limStale: 'Limits below are out of date',
     plugNewer: 'Plugin is newer than firmware', fwNewer: 'Firmware is newer than plugin', updFw: 'Update the firmware', updPlug: 'Update the plugin', inCC: 'in Claude Code:',
@@ -341,6 +352,14 @@ function line2(s, T) {
     default: return [i.icon, i.label];
   }
 }
+// idea: what fills the third line, by status
+function line3(x, T) {
+  const subs = x.subagents || [], n = subs.length + (x.subagents_more || 0);
+  if (x.status === 'done' && x.summary) return `${icon('check', 11)}${esc(x.summary)}`;
+  if (x.status === 'work' && x.quiet >= 120) return `<span class="q">${icon('clock', 11)}${T.quiet} ${dur(x.quiet, false, T)}</span>`;
+  if (x.status === 'subs' && subs[0]) return `<b>${esc(subs[0].type)}</b> · ${esc(subs[0].task)}${n > 1 ? ` +${n - 1}` : ''}`;
+  return `${icon('folder', 11)}${esc(x.dir)}${x.model ? ' · ' + esc(x.model) : ''}`;
+}
 const lvl = p => p == null ? '' : p >= 90 ? 'hi' : p >= 70 ? 'mid' : '';
 const bar = p => p == null ? '<div class="bar na"></div>' : `<div class="bar"><i class="${lvl(p)}" style="width:${p}%"></i></div>`;
 const vbar = p => `<div class="vbar"><i class="${lvl(p)}" style="height:${p ?? 0}%"></i></div>`;
@@ -357,17 +376,25 @@ function marquee() {
 }
 
 /* list layouts: item height (depends on text size) + gap → how many fit into the list area (254 px, or 220 with the pager) */
-const SIZES = { 13: { ch: 48, rh: 24, gh: 48 }, 14: { ch: 50, rh: 26, gh: 50 }, 16: { ch: 56, rh: 30, gh: 56 } };
+const SIZES = { 13: { ch: 48, rh: 24, gh: 48, fn: 13, ft: 11, fs: 10 }, 14: { ch: 50, rh: 26, gh: 50, fn: 14, ft: 12, fs: 11 },
+  16: { ch: 56, rh: 30, gh: 56, fn: 16, ft: 13, fs: 12 } };
+// idea: card height needed for a third line (or a two-line question)
+const roomFor3 = z => 4 + z.fn + 3 + 1 + 2 * (z.ft + 3) + 9;
 const LAYOUTS = {
   large: {
     cap: (a, z) => Math.floor(a / (z.ch + 4)),
-    item: (x, now, T) => {
-      const [ic, txt] = line2(x, T);
+    item: (x, now, T, room) => {
+      const [ic, txt] = line2(x, T), two = room && x.status === 'wait', l3 = room && !two ? line3(x, T) : '';
       return `<div class="card st-${x.status}" data-a="open" data-v="${x.id}">
         <div class="r1">${nameHTML(x.name)}<span class="tm">${timeText(x, now, T)}</span></div>
-        <div class="r2">${icon(ic)}<span class="ac ell">${esc(txt)}</span><span class="pc">${x.ctx == null ? '' : x.ctx + '%'}</span></div>
+        <div class="r2${two ? ' two' : ''}">${icon(ic)}<span class="ac${two ? '' : ' ell'}">${esc(txt)}</span><span class="pc">${x.ctx == null ? '' : x.ctx + '%'}</span></div>
+        ${l3 ? `<div class="r3">${l3}</div>` : ''}
         ${bar(x.ctx)}</div>`;
     },
+  },
+  detail: {  // idea: a layout that always has the third line, 3 agents per page
+    cap: (a, z) => Math.floor(a / (roomFor3(z) + 2 + 4)),
+    item: (x, now, T) => LAYOUTS.large.item(x, now, T, true),
   },
   compact: {
     cap: (a, z) => Math.floor((a - 2) / (z.rh + 2)),
@@ -476,10 +503,11 @@ class Board {
     const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn')}</span>` : ''}</button>`;
     // stretch items so the page slots fill the list area (by slots, not sessions, so the last page looks the same)
     const gap = u.layout === 'compact' ? 2 : 4, slots = u.layout === 'grid' ? per / 2 : per;
-    const base = u.layout === 'large' ? z.ch : u.layout === 'compact' ? z.rh : z.gh;
+    const base = { large: z.ch, compact: z.rh, grid: z.gh, detail: roomFor3(z) + 2 }[u.layout];
     const h = Math.max(base, Math.floor(((paged ? 220 : 254) - 4 - (slots - 1) * gap) / slots));
+    const room = u.layout === 'large' && h >= roomFor3(z);
     return this.hdr()
-      + `<div class="list l-${u.layout}" style="--ch:${h}px;--rh:${h}px;--gh:${h}px">${ss.slice(from, from + per).map(x => L.item(x, s.now, T)).join('')}</div>`
+      + `<div class="list l-${u.layout}" style="--ch:${h}px;--rh:${h}px;--gh:${h}px">${ss.slice(from, from + per).map(x => L.item(x, s.now, T, room)).join('')}</div>`
       + (paged ? `<div class="pager">${pb('up', above, u.page === 0)}<span class="pn">${u.page + 1} / ${pages}${s.sessions_more ? ` · +${s.sessions_more}` : ''}</span>${pb('down', below, u.page === pages - 1)}</div>` : '')
       + this.ftr();
   }
@@ -561,6 +589,8 @@ function toProto(s) {
   if (s.ctx != null) { o.ctx = Math.round(s.ctx); o.tokens = Math.round(s.ctx / 100 * s.tokens_max); o.tokens_max = s.tokens_max; }
   if (s.model) o.model = s.model;
   o.dir = trunc(s.dir, 40); o.started = s.started;
+  if (s.status === 'done' && s.summary) o.summary = trunc(s.summary, 80);  // idea: first line of Claude's last answer
+  if (s.status === 'work' && s.quiet != null) o.quiet = s.quiet;             // idea: seconds since the last hook event
   if (s.subagents.length) { o.subagents = s.subagents.slice(0, 4); if (s.subagents.length > 4) o.subagents_more = s.subagents.length - 4; }
   return o;
 }
@@ -616,7 +646,22 @@ function many(n, t, waitAt) {
       subagents: status === 'subs' ? [{ type: 'Explore', task: SUBTASKS[i % SUBTASKS.length][1] }] : [] }, t);
   });
 }
+const ideas = t => [
+  mk({ id: 'i1', name: 'Рефакторинг хаба', dir: 'agent-display/plugin', status: 'wait', wait_for: 'perm', since: t - 95, icon: 'ask',
+    action: 'Bash: git push --force-with-lease origin feature/hub-serial-reconnect', ctx: 67 }, t),
+  mk({ id: 'i2', name: 'Миграция БД на Postgres', dir: 'work/shop-backend', status: 'done', since: t - 720, ctx: 91,
+    summary: 'Перенёс 14 таблиц на Postgres, все тесты зелёные' }, t),
+  mk({ id: 'i3', name: 'landing', dir: 'site/landing', status: 'work', since: t - 400, icon: 'run', action: 'Bash: npm run test:e2e',
+    ctx: 38, quiet: 200, model: 'Haiku 5.5' }, t),
+  mk({ id: 'i4', name: 'shop-backend', dir: 'work/shop-backend', status: 'subs', since: t - 410, ctx: 23, model: 'Sonnet 5.5',
+    subagents: [{ type: 'Explore', task: 'Найти все вызовы оплаты' }, { type: 'Explore', task: 'Где парсится webhook' },
+      { type: 'Plan', task: 'План рефакторинга' }] }, t),
+  mk({ id: 'i5', name: 'agent-display', status: 'work', since: t - 260, icon: 'edit', action: 'Edit firmware/src/ui.cpp', ctx: 42, quiet: 5 }, t),
+  mk({ id: 'i6', name: 'Telegram-бот для заказов', dir: 'pets/order-bot', status: 'wait', wait_for: 'question', since: t - 150, icon: 'ask',
+    action: 'Удалить старые миграции или оставить их для отката на прошлую версию?', ctx: 34, model: 'Sonnet 5.5' }, t),
+];
 const SCEN = {
+  ideas: { label: 'Идеи: третья строка', build: t => ({ sessions: ideas(t), limits: LIM(t) }) },
   live: { label: 'Живая симуляция' },
   one: { label: 'Один агент', build: t => ({ sessions: [demo(t)[0]], limits: LIM(t) }) },
   many: { label: '12 агентов, ждущий за экраном', build: t => ({ sessions: many(12, t, 10), limits: LIM(t) }) },
@@ -770,6 +815,16 @@ else {
   });
 
   const GAL = [
+    '<b>Идея 1 — третья строка в карточке.</b> Место под неё появляется на крупном тексте (16 px), когда агентов больше, чем влезает '
+      + 'на страницу. Заполняется по статусу: <b>ждёт тебя</b> — вопрос или команда целиком в 2 строки; <b>готов</b> — что сделал '
+      + '(первая строка последнего ответа Claude); <b>работает</b> — «тишина N мин», если давно ничего не делал, иначе папка и модель; '
+      + '<b>ждёт субагентов</b> — задача первого из них.',
+    ['Идея 1 · текст 16 · стр. 1', 'ideas', { size: 16 }], ['Идея 1 · текст 16 · стр. 2', 'ideas', { size: 16, page: 1 }],
+    ['Идея 1 · текст 16 · светлая', 'ideas', { size: 16, theme: 'light' }], ['Как сейчас · текст 14 (третьей строке нет места)', 'ideas', {}],
+    '<b>Идея 2 — отдельная раскладка «Подробно».</b> Третья строка есть всегда, при любом размере текста; на страницу — 3 агента.',
+    ['Идея 2 · «Подробно» · стр. 1', 'ideas', { layout: 'detail' }], ['Идея 2 · «Подробно» · стр. 2', 'ideas', { layout: 'detail', page: 1 }],
+    ['Идея 2 · «Подробно» · светлая', 'ideas', { layout: 'detail', theme: 'light' }],
+    '<b>Все экраны — как сейчас</b>',
     ['Главный · Крупно', 'demo', {}], ['Главный · Компактно', 'many', { layout: 'compact' }], ['Главный · Сетка', 'demo', { layout: 'grid' }],
     ['Не влезли: ждущий ниже', 'many', {}], ['Подробности · субагенты', 'demo', { screen: 'details', sel: 'd3c2f5b8' }],
     ['Подробности · вопрос', 'demo', { screen: 'details', sel: 'd5e4b7da' }], ['Настройки', 'update', { screen: 'settings' }],
@@ -780,14 +835,17 @@ else {
     ['English · Large', 'demo-en', { lang: 'en' }], ['English · Settings', 'demo-en', { lang: 'en', screen: 'settings' }],
   ];
   const t0 = nowSec();
-  const gboards = GAL.map(([title, sc, ui]) => {
+  const gboards = [];
+  GAL.forEach(g => {
+    if (typeof g === 'string') { const n = document.createElement('div'); n.className = 'gnote'; n.innerHTML = g; $('#tab-gallery').append(n); return; }
+    const [title, sc, ui] = g;
     const wrap = document.createElement('div'); wrap.className = 'gi';
     wrap.innerHTML = `<div class="case"><div class="z2"></div></div><div class="gl"><b>${title}</b></div>`;
     $('#tab-gallery').append(wrap);
     const data = sc === 'demo' ? { sessions: demo(t0), limits: LIM(t0) } : sc === 'demo-en' ? { sessions: demo(t0, 'en'), limits: LIM(t0) }
       : SCEN[sc].build ? SCEN[sc].build(t0) : null;
     const b = new Board(wrap.querySelector('.z2'), { ui, static: true, nvs: sc === 'lost' ? { limits: LIM(t0) } : null });
-    return { b, data };
+    gboards.push({ b, data });
   });
   const feedGallery = () => gboards.forEach(({ b, data }) => { if (data) b.feed(buildSnap(data, nowSec())); b.render(); });
 
