@@ -871,7 +871,9 @@ void calibrate() {
 }
 
 /* ---------- LVGL glue and timers ---------- */
-uint16_t buf1[W * 64];  // one buffer: the flush blocks, a second would never be used
+// one buffer: the flush blocks, a second would never be used. LVGL silently rejects a buffer that isn't
+// LV_DRAW_BUF_ALIGN-aligned (black screen), and a uint16_t array is only 2-aligned on its own
+alignas(LV_DRAW_BUF_ALIGN) uint16_t buf1[W * 64];
 
 void flush_cb(lv_display_t* d, const lv_area_t* a, uint8_t* px) {
   lcd->pushImage(a->x1, a->y1, lv_area_get_width(a), lv_area_get_height(a), (const lgfx::rgb565_t*)px);
