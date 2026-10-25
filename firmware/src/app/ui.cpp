@@ -8,17 +8,11 @@
 
 #include <vector>
 
+#include "app/fonts/fonts.h"
 #include "app/i18n.h"
 #include "app/icons.h"
 #include "app/settings.h"
 #include "app/theme.h"
-
-extern const uint8_t inter400[] asm("_binary_fonts_Inter_400_ttf_start");
-extern const uint8_t inter400_end[] asm("_binary_fonts_Inter_400_ttf_end");
-extern const uint8_t inter600[] asm("_binary_fonts_Inter_600_ttf_start");
-extern const uint8_t inter600_end[] asm("_binary_fonts_Inter_600_ttf_end");
-extern const uint8_t fa_solid[] asm("_binary_fonts_fa_solid_ttf_start");
-extern const uint8_t fa_solid_end[] asm("_binary_fonts_fa_solid_ttf_end");
 
 namespace ui {
 namespace {
@@ -46,7 +40,7 @@ int page = 0;
 String sel, shown_key;
 uint32_t touch_ms = 0, details_ms = 0, toast_ms = 0, phrase_ms = 0;
 int phrase = -1;
-bool dirty = true, was_empty = false, empty_before = false, blink_on = true, fonts_stale = false;
+bool dirty = true, was_empty = false, empty_before = false, blink_on = true;
 
 struct Blink {
   lv_obj_t* o;
@@ -68,31 +62,11 @@ bool ok() { return !lost() && snap.v == PROTO; }
 lv_color_t hex(uint32_t c) { return lv_color_hex(c); }
 lv_color_t mix(uint32_t a, uint32_t b, lv_opa_t k) { return lv_color_mix(hex(a), hex(b), k); }
 
-/* ---------- fonts: TinyTTF renders Inter and the Font Awesome icons at any size ---------- */
-// every font keeps its own glyph cache, so: small caches, few sizes, and drop them all when the text size changes
-lv_font_t* icon_fonts[41];
-lv_font_t* text_fonts[2][41];
-
-const lv_font_t* icons(int px) {
-  lv_font_t*& f = icon_fonts[px];
-  if (!f) f = lv_tiny_ttf_create_data_ex(fa_solid, fa_solid_end - fa_solid, px, LV_FONT_KERNING_NONE, 32);
-  return f;
-}
+/* ---------- fonts: pre-rendered into flash by tools/gen_fonts.py — no RAM, fastest to draw ---------- */
+const lv_font_t* icons(int px) { return icon_font(px); }  // 12, 16 or 30 px
 
 const lv_font_t* font(int px, bool semi = false) {
-  lv_font_t*& f = text_fonts[semi][px];
-  // glyph caches big enough for a screenful of text: rasterizing glyphs is what makes redraws slow
-  if (!f) f = semi ? lv_tiny_ttf_create_data_ex(inter600, inter600_end - inter600, px, LV_FONT_KERNING_NONE, 160)
-                   : lv_tiny_ttf_create_data_ex(inter400, inter400_end - inter400, px, LV_FONT_KERNING_NONE, 160);
-  return f;
-}
-
-void free_fonts() {  // only when no label uses them
-  for (lv_font_t*& f : icon_fonts)
-    if (f) { lv_tiny_ttf_destroy(f); f = nullptr; }
-  for (auto& w : text_fonts)
-    for (lv_font_t*& f : w)
-      if (f) { lv_tiny_ttf_destroy(f); f = nullptr; }
+  return TEXT_FONTS[semi][constrain(px, TEXT_PX_MIN, TEXT_PX_MAX) - TEXT_PX_MIN];
 }
 
 int line_h(int px, bool semi = false) { return lv_font_get_line_height(font(px, semi)); }
@@ -377,7 +351,7 @@ void cb_setting(lv_event_t* e) {
   int v = arg(e), id = v >> 8, val = v & 0xFF;
   if (id == SET_THEME) cfg.theme = val;
   else if (id == SET_LANG) cfg.lang = val;
-  else if (id == SET_SIZE) { cfg.size = val; page = 0; fonts_stale = true; }
+  else if (id == SET_SIZE) { cfg.size = val; page = 0; }
   else if (id == SET_LAYOUT) { cfg.layout = val; page = 0; }
   settings::save(cfg);
   dirty = true;
@@ -855,7 +829,6 @@ void rebuild() {
   lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
   lv_screen_load(scr);
   if (old) lv_obj_delete(old);
-  if (fonts_stale) { free_fonts(); fonts_stale = false; }
   fill(scr, hex(screen == CALIB ? 0x000000 : th().bg));
   if (screen == CALIB) build_calib(scr);
   else if (screen == SETTINGS) build_settings(scr);
