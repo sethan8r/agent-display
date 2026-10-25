@@ -39,11 +39,11 @@ static const lv_font_t* font(int px, bool semi = false) {
 
 /* ---------- palette from design/index.html ---------- */
 // light theme: saturated colors and opaque frames, the TN panel washes pale ones out on white
-struct Theme { uint32_t bg, panel, panel2, line, fg, mut, work, done, wait, subs, wait_ink; lv_opa_t frame, frame_dim, tint; };
-static const Theme DARK = {0x0D1015, 0x161A21, 0x1E232C, 0x262C37, 0xE9EDF3, 0x8D96A7, 0x2F86FF, 0x00E36A, 0xFFA600, 0xA366FF,
-                           0xFFA600, 230, 140, 50};
+struct Theme { uint32_t bg, panel, panel2, line, fg, mut, work, done, wait, subs, wait_ink; lv_opa_t frame, frame_dim, tint; uint32_t error; };
+static const Theme DARK = {0x0D1015, 0x161A21, 0x1E232C, 0x262C37, 0xE9EDF3, 0x8D96A7, 0x2F86FF, 0x00F25C, 0xFFA600, 0xA366FF,
+                           0xFFA600, 230, 140, 50, 0xFF2A2A};
 static const Theme LIGHT = {0xF2F3F5, 0xFFFFFF, 0xE9ECF0, 0xCDD2DA, 0x14171C, 0x4A5260, 0x0057FF, 0x00B347, 0xFF8A00, 0x8B2CFF,
-                            0xA85A00, 255, 215, 85};
+                            0xA85A00, 255, 215, 85, 0xF01818};
 static const Theme& th() { return light_theme ? LIGHT : DARK; }
 static lv_color_t hex(uint32_t c) { return lv_color_hex(c); }
 
@@ -336,7 +336,7 @@ static void card(lv_obj_t* scr, int y, uint32_t c, bool dim, bool wait, const ch
   lv_obj_t* bar = fill(box(o), t.panel2);
   lv_obj_set_pos(bar, 7, 40);
   lv_obj_set_size(bar, cyd::W - 26, 3);
-  lv_obj_t* fillbar = fill(box(bar), ctx >= 90 ? 0xFF5D5D : t.fg, ctx >= 90 ? LV_OPA_COVER : 140);
+  lv_obj_t* fillbar = fill(box(bar), ctx >= 90 ? t.error : t.fg, ctx >= 90 ? LV_OPA_COVER : 140);
   lv_obj_set_size(fillbar, (cyd::W - 26) * ctx / 100, 3);
   if (wait) blink_card = o;
 }
