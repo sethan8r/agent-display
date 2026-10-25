@@ -72,7 +72,7 @@ body.cap { background:transparent; }
              --work:#0057FF; --done:#00B347; --wait:#FF8A00; --subs:#8B2CFF; --idle:#808894; --error:#E5302F;
              --wait-ink:#A85A00; --frame:100%; --frame-dim:84%; --tint:33%; }
 /* text size setting: name / text / small px and item heights */
-.scr     { --fn:14px; --ft:12px; --fs:11px; --ch:50px; --rh:26px; --gh:50px; --fill:0%; }
+.scr     { --fn:14px; --ft:12px; --fs:11px; --ch:50px; --rh:26px; --gh:50px; --fill:15%; }
 .scr.z13 { --fn:13px; --ft:11px; --fs:10px; --ch:48px; --rh:24px; --gh:48px; }
 .scr.z16 { --fn:16px; --ft:13px; --fs:12px; --ch:56px; --rh:30px; --gh:56px; }
 .mq { overflow:hidden; white-space:nowrap; min-width:0; }
@@ -130,7 +130,7 @@ body.cap { background:transparent; }
 .cell .r2 { display:flex; align-items:center; gap:3px; color:var(--mut); font-size:var(--fs); height:calc(var(--fs) + 4px); }
 .st-wait.cell .r2 { color:var(--wait-ink); font-weight:600; }
 .cell .bar { margin-top:5px; }
-/* card fill tinted with the status color (--fill: 0% = frame only); the blinking "waits for you" stays stronger */
+/* card fill: 15% of the status color; the blinking "waits for you" stays stronger */
 .scr .card, .scr .cell, .scr .row { background:color-mix(in srgb, var(--c) var(--fill), var(--panel)); }
 .scr .st-wait.card, .scr .st-wait.cell, .scr .st-wait.row { background:color-mix(in srgb, var(--wait) var(--tint), var(--panel)); }
 .boff .st-wait.card, .boff .st-wait.cell, .boff .st-wait.row { background:color-mix(in srgb, var(--wait) var(--fill), var(--panel)); }
@@ -228,10 +228,6 @@ body.cap { background:transparent; }
       <div class="box">
         <h3>Ситуация</h3>
         <div class="chips" id="scen"></div>
-      </div>
-      <div class="box">
-        <h3>Заливка карточек цветом статуса</h3>
-        <div class="chips" id="fill"></div>
       </div>
       <div class="box" id="simbox">
         <h3>Симуляция</h3>
@@ -376,7 +372,6 @@ function marquee() {
 }
 
 /* list layouts: item height (depends on text size) + gap → how many fit into the list area (254 px, or 220 with the pager) */
-let FILL = 0;   // % of status color in card backgrounds — being chosen, see the gallery
 const SIZES = { 13: { ch: 48, rh: 24, gh: 48 }, 14: { ch: 50, rh: 26, gh: 50 }, 16: { ch: 56, rh: 30, gh: 56 } };
 const LAYOUTS = {
   large: {
@@ -444,6 +439,7 @@ class Board {
   render() {
     const u = this.ui;
     let body;
+    this.emptyNow = false;
     if (u.screen === 'calib') body = this.calibHTML();
     else if (u.screen === 'settings') body = this.settingsHTML();
     else if (this.lost) body = this.lostHTML();
@@ -453,7 +449,8 @@ class Board {
       if (!s || (!this.static && Date.now() - u.detAt > 30000)) { u.screen = 'main'; return this.render(); }
       body = this.detailsHTML(s);
     } else body = this.snap.sessions.length ? this.mainHTML() : this.emptyHTML();
-    this.el.innerHTML = `<div class="scr ${u.theme} z${u.size} ${this.blink ? '' : 'boff'}" style="--fill:${u.fill ?? FILL}%">${body}</div>`;
+    this.wasEmpty = this.emptyNow;
+    this.el.innerHTML = `<div class="scr ${u.theme} z${u.size} ${this.blink ? '' : 'boff'}"">${body}</div>`;
     this.applyBright();
   }
   tick() { this.blink = !this.blink; if (this.ui.screen !== 'settings' && this.ui.screen !== 'calib') this.render(); }
@@ -540,8 +537,11 @@ class Board {
       <button class="cross" data-a="cross" style="left:${x - 20}px;top:${y - 20}px"></button></div>`;
   }
   emptyHTML() {
-    const T = this.T;
-    return this.hdr() + `<div class="empty">${icon('coffee', 30)}<div class="ph">${T.phrases[Math.floor(Date.now() / 12000) % T.phrases.length]}</div>
+    const T = this.T, n = T.phrases.length;
+    // a new random phrase every time the screen becomes empty, never the same one twice in a row
+    if (!this.wasEmpty) this.phrase = (this.phrase ?? -1) < 0 ? Math.floor(Math.random() * n) : (this.phrase + 1 + Math.floor(Math.random() * (n - 1))) % n;
+    this.emptyNow = true;
+    return this.hdr() + `<div class="empty">${icon('coffee', 30)}<div class="ph">${T.phrases[this.phrase]}</div>
       <div class="sub">${T.noAgents}</div></div>` + this.ftr();
   }
   lostHTML() {
@@ -777,13 +777,7 @@ else {
     SIMCTL.find(c => c[0] === b.dataset.k)[2](); drawSimCtl(); pump();   // events go out immediately, not on the next tick
   });
 
-  const fills = [0, 6, 10, 15];
-  const drawFill = () => { $('#fill').innerHTML = fills.map(f => `<button data-f="${f}" class="${f === FILL ? 'on' : ''}">${f ? f + ' %' : 'Только рамка'}</button>`).join(''); };
-  $('#fill').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { FILL = +b.dataset.f; drawFill(); live.render(); } });
-  drawFill();
-
   const GAL = [
-    ...['dark', 'light'].flatMap(theme => fills.map(f => [`Заливка ${f ? f + ' %' : '0 — только рамка'} · ${theme === 'dark' ? 'тёмная' : 'светлая'}`, 'demo', { theme, fill: f }])),
     ['Главный · Крупно', 'demo', {}], ['Главный · Компактно', 'many', { layout: 'compact' }], ['Главный · Сетка', 'demo', { layout: 'grid' }],
     ['Не влезли: ждущий ниже', 'many', {}], ['Подробности · субагенты', 'demo', { screen: 'details', sel: 'd3c2f5b8' }],
     ['Подробности · вопрос', 'demo', { screen: 'details', sel: 'd5e4b7da' }], ['Настройки', 'update', { screen: 'settings' }],
