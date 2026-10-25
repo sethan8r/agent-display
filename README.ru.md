@@ -227,6 +227,36 @@ pio run -e main -t upload
 статус-строкой, чтобы плата получала контекст и лимиты. Твоя статус-строка остаётся ровно такой же;
 `/agent-display:setup remove` всё вернёт.
 
+## Обновление
+
+**Плагин.** В терминале:
+
+```
+claude plugin marketplace update agent-display
+claude plugin update agent-display@agent-display
+```
+
+Новая версия подхватится в следующей сессии Claude Code (или сразу после `/reload-plugins`).
+
+**Прошивка.** Когда плата пишет *«Плагин новее прошивки»*, прошей её заново, как в шаге 1. Пока открыта хоть одна
+сессия Claude Code, фоновый хаб плагина держит порт платы, и прошивка падает с ошибкой *«could not open port»*:
+закрой все окна Claude Code (хаб отпустит порт в течение 5 минут) или останови его сразу в PowerShell:
+
+```
+Get-CimInstance Win32_Process | ? CommandLine -like '*agent-display*hub.py*' | % { Stop-Process $_.ProcessId }
+```
+
+Настройки и калибровка тача при обновлении прошивки сохраняются.
+
+## Удаление
+
+```
+/agent-display:setup remove
+/plugin uninstall agent-display@agent-display
+```
+
+Первая команда возвращает твою статус-строку, сделай её до удаления плагина.
+
 ## Железо
 
 - ESP32-2432S028 «Cheap Yellow Display», версия с двумя портами (micro-USB + USB-C).

@@ -228,6 +228,37 @@ New sessions start showing up on the board right away.
 so the board also gets the context and plan limits. Your status line stays exactly as it is;
 `/agent-display:setup remove` undoes it.
 
+## Update
+
+**Plugin.** In a terminal:
+
+```
+claude plugin marketplace update agent-display
+claude plugin update agent-display@agent-display
+```
+
+The new version loads in the next Claude Code session (or right away after `/reload-plugins`).
+
+**Firmware.** When the board says *"Plugin is newer than firmware"*, flash it again as in step 1. While any
+Claude Code session is open, the plugin's background hub holds the board's port and the upload fails with
+*"could not open port"*: close all Claude Code windows (the hub lets go within 5 minutes), or stop it right away
+in PowerShell:
+
+```
+Get-CimInstance Win32_Process | ? CommandLine -like '*agent-display*hub.py*' | % { Stop-Process $_.ProcessId }
+```
+
+Settings and touch calibration survive a firmware update.
+
+## Uninstall
+
+```
+/agent-display:setup remove
+/plugin uninstall agent-display@agent-display
+```
+
+The first command puts your own status line back; do it before uninstalling.
+
 ## Hardware
 
 - ESP32-2432S028 "Cheap Yellow Display", two-port version (micro-USB + USB-C).
