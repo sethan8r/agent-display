@@ -100,7 +100,7 @@ body.cap { background:transparent; }
 .list { flex:1; padding:4px 4px 0; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
 /* large */
 .card { height:var(--ch); flex:none; border:2px solid color-mix(in srgb, var(--c) var(--frame), transparent); border-radius:8px; background:var(--panel);
-        padding:4px 7px 0; display:flex; flex-direction:column; }
+        padding:0 7px; display:flex; flex-direction:column; justify-content:center; }
 .st-done.card, .st-idle.card { border-color:color-mix(in srgb, var(--c) var(--frame-dim), transparent); }
 .card .r1 { display:flex; gap:6px; align-items:baseline; height:calc(var(--fn) + 3px); }
 .card .nm { font-size:var(--fn); line-height:calc(var(--fn) + 3px); font-weight:600; flex:1; }
@@ -125,7 +125,7 @@ body.cap { background:transparent; }
 .vbar i { position:absolute; left:0; right:0; bottom:0; background:var(--fg); opacity:.55; }
 /* grid */
 .l-grid { display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:var(--gh); align-content:start; }
-.cell { border:2px solid color-mix(in srgb, var(--c) var(--frame), transparent); border-radius:8px; background:var(--panel); padding:4px 6px 0; display:flex; flex-direction:column; min-width:0; }
+.cell { border:2px solid color-mix(in srgb, var(--c) var(--frame), transparent); border-radius:8px; background:var(--panel); padding:0 6px; display:flex; flex-direction:column; justify-content:center; min-width:0; }
 .st-done.cell, .st-idle.cell { border-color:color-mix(in srgb, var(--c) var(--frame-dim), transparent); }
 .cell .nm { font-weight:600; font-size:calc(var(--fn) - 1px); line-height:calc(var(--fn) + 2px); }
 .cell .r2 { display:flex; align-items:center; gap:3px; color:var(--mut); font-size:var(--fs); height:calc(var(--fs) + 4px); }
@@ -474,8 +474,12 @@ class Board {
     const from = u.page * per, waits = ss.map((x, i) => x.status === 'wait' ? i : -1).filter(i => i >= 0);
     const above = waits.filter(i => i < from).length, below = waits.filter(i => i >= from + per).length;
     const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn')}</span>` : ''}</button>`;
+    // stretch items so the page slots fill the list area (by slots, not sessions, so the last page looks the same)
+    const gap = u.layout === 'compact' ? 2 : 4, slots = u.layout === 'grid' ? per / 2 : per;
+    const base = u.layout === 'large' ? z.ch : u.layout === 'compact' ? z.rh : z.gh;
+    const h = Math.max(base, Math.floor(((paged ? 220 : 254) - 4 - (slots - 1) * gap) / slots));
     return this.hdr()
-      + `<div class="list l-${u.layout}">${ss.slice(from, from + per).map(x => L.item(x, s.now, T)).join('')}</div>`
+      + `<div class="list l-${u.layout}" style="--ch:${h}px;--rh:${h}px;--gh:${h}px">${ss.slice(from, from + per).map(x => L.item(x, s.now, T)).join('')}</div>`
       + (paged ? `<div class="pager">${pb('up', above, u.page === 0)}<span class="pn">${u.page + 1} / ${pages}${s.sessions_more ? ` · +${s.sessions_more}` : ''}</span>${pb('down', below, u.page === pages - 1)}</div>` : '')
       + this.ftr();
   }

@@ -484,17 +484,18 @@ lv_obj_t* tile(lv_obj_t* scr, const Session& s, int x, int y, int w, int h, int 
   return o;
 }
 
-void card(lv_obj_t* scr, const Session& s, int y) {
+void card(lv_obj_t* scr, const Session& s, int y, int h) {
   const Theme& t = th();
   const Size& z = sz();
   uint32_t c = st_color(s);
   int w = W - 8, inner = w - 4 - 14;  // 2 px frame each side, 7 px padding
-  lv_obj_t* o = tile(scr, s, 4, y, w, z.card, 8, true);
+  lv_obj_t* o = tile(scr, s, 4, y, w, h, 8, true);
+  int top = 3 + (h - z.card) / 2;  // content centered when the card is stretched
   lv_obj_t* tm = text(o, time_text(s, false), z.fs, false, t.mut);
   int tw = width_of(tm);
-  lv_obj_set_pos(tm, 7 + inner - tw, 3 + (line_h(z.fn, true) - line_h(z.fs)) / 2 + 1);
-  marquee(o, 7, 3, inner - tw - 6, s.name, z.fn, true, t.fg);
-  int r2 = 3 + line_h(z.fn, true) + 1;
+  lv_obj_set_pos(tm, 7 + inner - tw, top + (line_h(z.fn, true) - line_h(z.fs)) / 2 + 1);
+  marquee(o, 7, top, inner - tw - 6, s.name, z.fn, true, t.fg);
+  int r2 = top + line_h(z.fn, true) + 1;
   const char* ic;
   String txt;
   line2(s, ic, txt);
@@ -507,14 +508,14 @@ void card(lv_obj_t* scr, const Session& s, int y) {
   ctx_bar(o, 7, r2 + line_h(z.ft) + 4, inner, 3, s.ctx);
 }
 
-void row(lv_obj_t* scr, const Session& s, int y) {
+void row(lv_obj_t* scr, const Session& s, int y, int h) {
   const Theme& t = th();
   const Size& z = sz();
   uint32_t c = st_color(s);
   int w = W - 8;
-  lv_obj_t* o = tile(scr, s, 4, y, w, z.row, 5, false);
-  fill(box(o, 0, 0, 4, z.row), hex(c), dimmed(s) ? 128 : LV_OPA_COVER);
-  lv_obj_t* vb = round(fill(box(o, w - 9, (z.row - 16) / 2, 4, 16), hex(t.panel2)), 2);
+  lv_obj_t* o = tile(scr, s, 4, y, w, h, 5, false);
+  fill(box(o, 0, 0, 4, h), hex(c), dimmed(s) ? 128 : LV_OPA_COVER);
+  lv_obj_t* vb = round(fill(box(o, w - 9, (h - 16) / 2, 4, 16), hex(t.panel2)), 2);
   if (s.ctx > 0) {
     int hh = max(2, 16 * min(s.ctx, 100) / 100);
     round(fill(box(vb, 0, 16 - hh, 4, hh), hex(level_color(s.ctx, t.fg)), s.ctx >= 70 ? LV_OPA_COVER : 140), 2);
@@ -522,19 +523,20 @@ void row(lv_obj_t* scr, const Session& s, int y) {
   lv_obj_t* tm = text(o, time_text(s, true), z.fs, false, t.mut);
   int tw = width_of(tm);
   lv_obj_align(tm, LV_ALIGN_RIGHT_MID, -15, 0);
-  int nx = 7 + SLOT + 4, ny = (z.row - line_h(z.fn - 1, true)) / 2;
+  int nx = 7 + SLOT + 4, ny = (h - line_h(z.fn - 1, true)) / 2;
   icon_at(o, st_icon(s), ICON, c, 7, ny, z.fn - 1, true);
   marquee(o, nx, ny, w - nx - 15 - tw - 6, s.name, z.fn - 1, true, t.fg);
 }
 
-void cell(lv_obj_t* scr, const Session& s, int x, int y) {
+void cell(lv_obj_t* scr, const Session& s, int x, int y, int h) {
   const Theme& t = th();
   const Size& z = sz();
   uint32_t c = st_color(s);
   int w = (W - 8 - 4) / 2, inner = w - 4 - 12;
-  lv_obj_t* o = tile(scr, s, x, y, w, z.cell, 8, true);
-  marquee(o, 6, 3, inner, s.name, z.fn - 1, true, t.fg);
-  int r2 = 3 + line_h(z.fn - 1, true) + 1;
+  lv_obj_t* o = tile(scr, s, x, y, w, h, 8, true);
+  int top = 3 + (h - z.cell) / 2;
+  marquee(o, 6, top, inner, s.name, z.fn - 1, true, t.fg);
+  int r2 = top + line_h(z.fn - 1, true) + 1;
   icon_at(o, st_icon(s), ICON, c, 4, r2, z.fs, is_wait(s));
   String tt = time_text(s, true);
   String lbl = String(st_label(s, true)) + (tt.length() ? String(" · ") + tt : String());
@@ -602,10 +604,14 @@ void build_main(lv_obj_t* scr) {
   int per = paged ? cap_paged : cap_all, pages = (n + per - 1) / per;
   page = constrain(page, 0, pages - 1);
   int from = page * per, to = min(n, from + per), y = HDR + 4;
+  // stretch items so the page slots fill the list area; by slots, not sessions, so the last page looks the same
+  int gap = cfg.layout == 1 ? 2 : 4, slots = cfg.layout == 2 ? per / 2 : per;
+  int base = cfg.layout == 0 ? z.card : cfg.layout == 1 ? z.row : z.cell;
+  int h = max(base, ((paged ? LIST - PAGER : LIST) - 4 - (slots - 1) * gap) / slots);
   for (int i = from; i < to; i++) {
-    if (cfg.layout == 0) { card(scr, ss[i], y); y += z.card + 4; }
-    else if (cfg.layout == 1) { row(scr, ss[i], y); y += z.row + 2; }
-    else { int k = i - from; cell(scr, ss[i], 4 + (k % 2) * ((W - 12) / 2 + 4), HDR + 4 + (k / 2) * (z.cell + 4)); }
+    if (cfg.layout == 0) { card(scr, ss[i], y, h); y += h + gap; }
+    else if (cfg.layout == 1) { row(scr, ss[i], y, h); y += h + gap; }
+    else { int k = i - from; cell(scr, ss[i], 4 + (k % 2) * ((W - 12) / 2 + 4), HDR + 4 + (k / 2) * (h + gap), h); }
   }
   if (paged) {
     int above = 0, below = 0;  // sessions waiting for you on other pages: a blinking ⚠ on that arrow
