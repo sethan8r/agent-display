@@ -207,7 +207,8 @@ PlatformIO + Arduino + LVGL 9 + LovyanGFX + ArduinoJson. Версии библи
 ## Репозиторий
 
 Публичный GitHub `sethan8r/agent-display`, лицензия MIT. Секретов в проекте нет (USB, без Wi-Fi/токенов).
-Почта в коммитах `me@sethan8r.ru` — публичная, так задумано. Репо на GitHub ещё НЕ создан (спросить).
+Почта в коммитах `me@sethan8r.ru` — публичная, так задумано. Репо создан 2026-10-25:
+https://github.com/sethan8r/agent-display (push по-прежнему только с моего разрешения).
 
 ```
 .claude-plugin/marketplace.json  витрина для /plugin marketplace add (source: ./plugin)
@@ -216,6 +217,7 @@ plugin/                          плагин: хуки, хаб, статус-с
 firmware/                        исходники прошивки (PlatformIO) — нужны только мне
 design/                          HTML-макеты экранов 240×320
 docs/protocol.md                 формат JSON хаб → плата (общий язык)
+enclosure/                       корпус для 3D-печати (STL/3MF/STEP + фото), чтобы любой мог распечатать
 ```
 
 `claude plugin validate .` и `claude plugin validate .\plugin` проходят. Предупреждения про иконку и
