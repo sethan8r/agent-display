@@ -317,7 +317,8 @@ static bool blink_on;
 
 static void card(lv_obj_t* scr, int y, uint32_t c, bool dim, bool wait, const char* name, const char* tm, const char* act, int ctx) {
   const Theme& t = th();
-  lv_obj_t* o = fill(box(scr), wait ? lv_color_to_u32(lv_color_mix(hex(t.wait), hex(t.panel), t.tint)) & 0xFFFFFF : t.panel);
+  // card fill: 15% of the status color (38/255), the waiting card stronger
+  lv_obj_t* o = fill(box(scr), lv_color_to_u32(lv_color_mix(hex(c), hex(t.panel), wait ? t.tint : 38)) & 0xFFFFFF);
   lv_obj_set_pos(o, 4, y);
   lv_obj_set_size(o, cyd::W - 8, 50);
   lv_obj_set_style_radius(o, 8, 0);
@@ -366,7 +367,7 @@ static void build_cards(lv_obj_t* scr) {
     const Theme& t = th();
     blink_on = !blink_on;
     lv_obj_set_style_border_opa(blink_card, blink_on ? t.frame : 56, 0);
-    lv_obj_set_style_bg_color(blink_card, blink_on ? lv_color_mix(hex(t.wait), hex(t.panel), t.tint) : hex(t.panel), 0);
+    lv_obj_set_style_bg_color(blink_card, lv_color_mix(hex(t.wait), hex(t.panel), blink_on ? t.tint : 38), 0);
   }, 500, nullptr);
 }
 
