@@ -8,3 +8,6 @@ __pycache__/
 # OS / editors
 .DS_Store
 Thumbs.db
+
+# test-only icon fonts, see firmware/tools/gen_icon_sets.py
+firmware/fonts/test/

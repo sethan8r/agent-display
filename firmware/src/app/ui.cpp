@@ -576,7 +576,9 @@ void build_details(lv_obj_t* scr, const Session& s) {
   constexpr int CW = W - 20;
   back_header(scr, nullptr);
   lv_obj_align(badge(scr, st_label(s, true), mix(c, t.bg, 38), c), LV_ALIGN_TOP_RIGHT, -8, 7);
-  timer_line = fill(box(scr, 0, HDR, W, 2), hex(t.line));
+  // auto-return countdown; created at its current length so a data update doesn't make it jump
+  uint32_t idle = millis() - max(details_ms, touch_ms);
+  timer_line = fill(box(scr, 0, HDR, W - W * min(idle, DETAILS_MS) / DETAILS_MS, 2), hex(t.line));
 
   lv_obj_t* col = box(scr, 10, HDR + 7, CW, LIST - 7);
   lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
