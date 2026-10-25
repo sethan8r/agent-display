@@ -665,6 +665,7 @@ const ideas = (t, lang = 'ru') => { const D = IDEAS_TXT[lang]; return [
 const SCEN = {
   ideas: { label: 'Третья строка (крупный текст)', build: t => ({ sessions: ideas(t), limits: LIM(t) }) },
   live: { label: 'Живая симуляция' },
+  hub: { label: 'Живые данные хаба' },
   one: { label: 'Один агент', build: t => ({ sessions: [demo(t)[0]], limits: LIM(t) }) },
   many: { label: '12 агентов, ждущий за экраном', build: t => ({ sessions: many(12, t, 10), limits: LIM(t) }) },
   twenty: { label: '23 агента', build: t => ({ sessions: many(23, t, 21), limits: LIM(t) }) },
@@ -775,9 +776,11 @@ else {
   const live = new Board($('#dev'), { log: serialLog, onTheme: th => { document.documentElement.dataset.theme = th; } });
   let scen = 'live', scenData = null;
 
-  const pump = () => {
+  const pump = async () => {
     let snap = null;
-    if (scen === 'live') snap = buildSnap({ sessions: sim.sessions, limits: sim.limits }, sim.t);
+    if (scen === 'hub') {  // virtual board: the real hub's snapshot (plugin/scripts/hub.py serves it)
+      try { snap = await (await fetch('http://127.0.0.1:47800/snapshot')).json(); } catch { snap = null; }
+    } else if (scen === 'live') snap = buildSnap({ sessions: sim.sessions, limits: sim.limits }, sim.t);
     else if (scen !== 'lost') snap = buildSnap(scenData, nowSec());
     if (snap) {
       live.feed(snap);

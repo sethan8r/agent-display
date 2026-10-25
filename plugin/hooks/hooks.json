@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 \"${CLAUDE_PLUGIN_ROOT}/scripts/session_start.py\" 2>/dev/null || python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/session_start.py\" 2>/dev/null || python \"${CLAUDE_PLUGIN_ROOT}/scripts/session_start.py\"",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "PreToolUse": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "PostToolUse": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "PermissionRequest": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "Notification": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "Stop": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "StopFailure": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "http", "url": "http://127.0.0.1:47800/hook", "timeout": 1 }] }]
+  }
+}
