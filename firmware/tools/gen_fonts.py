@@ -1,7 +1,7 @@
 """Fonts for the firmware: download the TTFs, then pre-render them into LVGL bitmap fonts.
 
-- Inter (regular + semibold) for text, 10..16 px
-- Font Awesome Free Solid for icons (same icons as design/index.html), 12 / 16 / 30 px
+- Inter (regular + semibold) for text, 10..16 px, and semibold 24 px for the empty screen phrase
+- Font Awesome Free Solid for icons (same icons as design/index.html), 12 / 16 / 30 / 56 px
 
 Pre-rendered fonts live in flash and need no RAM at all; rendering TTFs on the board (TinyTTF) ran the heap out.
 
@@ -31,7 +31,8 @@ ICONS = {
 
 
 TEXT_PX = range(10, 17)
-ICON_PX = (12, 16, 30)
+TITLE_PX = 24  # semibold only: the empty screen phrase
+ICON_PX = (12, 16, 30, 56)
 # Latin + Latin-1, Cyrillic (Russian with Ё, Ukrainian), and the typography the UI prints: – — … № ← ↑ → ↓
 TEXT_CODES = [*range(0x20, 0x7F), *range(0xA0, 0x100), 0x401, 0x404, 0x406, 0x407, *range(0x410, 0x450), 0x451, 0x454,
               0x456, 0x457, 0x490, 0x491, 0x2013, 0x2014, 0x2026, 0x2116, *range(0x2190, 0x2194)]
@@ -83,6 +84,7 @@ def main():
     for w in WEIGHTS:
         for px in TEXT_PX:
             names.append(bitmap_font(OUT / f"Inter-{w}.ttf", px, TEXT_CODES, f"inter_{w}_{px}", out))
+    names.append(bitmap_font(OUT / "Inter-600.ttf", TITLE_PX, TEXT_CODES, f"inter_600_{TITLE_PX}", out))
     icon_codes = sorted(int(codes[fa], 16) for fa in ICONS.values())
     for px in ICON_PX:
         names.append(bitmap_font(OUT / "fa-solid.ttf", px, icon_codes, f"fa_solid_{px}", out))
@@ -92,6 +94,7 @@ def main():
               f"constexpr int TEXT_PX_MIN = {TEXT_PX[0]}, TEXT_PX_MAX = {TEXT_PX[-1]};",
               "inline const lv_font_t* const TEXT_FONTS[2][TEXT_PX_MAX - TEXT_PX_MIN + 1] = {",
               *("  {" + ", ".join(f"&inter_{w}_{px}" for px in TEXT_PX) + "}," for w in WEIGHTS), "};",
+              f"constexpr int TITLE_PX = {TITLE_PX};", f"inline const lv_font_t* const TITLE_FONT = &inter_600_{TITLE_PX};",
               "inline const lv_font_t* icon_font(int px) { return " +
               " : ".join(f"px <= {p} ? &fa_solid_{p}" for p in ICON_PX[:-1]) + f" : &fa_solid_{ICON_PX[-1]}; }}", ""]
     (out / "fonts.h").write_text("\n".join(header), encoding="utf-8")

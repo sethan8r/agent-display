@@ -172,6 +172,10 @@ body.cap { background:transparent; }
 .empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 20px; gap:8px; color:var(--mut); }
 .empty .ph { color:var(--fg); font-size:15px; line-height:19px; font-weight:600; margin-top:4px; }
 .empty .sub { font-size:12px; }
+/* no agents: phrase 24 px, mug 56 px, caption 14 px — readable from afar */
+.empty.big { padding:0 12px; }
+.empty.big .ph { font-size:24px; line-height:29px; }
+.empty.big .sub { font-size:14px; }
 .empty .sub2 { font-size:11px; color:var(--dim); margin-top:6px; }
 .empty.warn > .ic { color:var(--wait); }
 .empty code { font:500 11px/15px 'JetBrains Mono', monospace; background:var(--panel2); color:var(--fg); padding:5px 7px; border-radius:6px; }
@@ -378,9 +382,11 @@ const SIZES = { 13: { ch: 48, rh: 24, gh: 48, fn: 13, ft: 11, fs: 10 }, 14: { ch
   16: { ch: 56, rh: 30, gh: 56, fn: 16, ft: 13, fs: 12 } };
 // card height needed for a third line (or a two-line question)
 const roomFor3 = z => 4 + z.fn + 3 + 1 + 2 * (z.ft + 3) + 9;
+// the third card line belongs to big text: its cards are made tall enough for it (3 a page instead of 4)
+const cardH = z => z.fn >= 16 ? roomFor3(z) : z.ch;
 const LAYOUTS = {
   large: {
-    cap: (a, z) => Math.floor(a / (z.ch + 4)),
+    cap: (a, z) => Math.floor(a / (cardH(z) + 4)),
     item: (x, now, T, room) => {
       const [ic, txt] = line2(x, T), two = room && x.status === 'wait', l3 = room && !two ? line3(x, T) : '';
       return `<div class="card st-${x.status}" data-a="open" data-v="${x.id}">
@@ -497,9 +503,9 @@ class Board {
     const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn')}</span>` : ''}</button>`;
     // stretch items so the page slots fill the list area (by slots, not sessions, so the last page looks the same)
     const gap = u.layout === 'compact' ? 2 : 4, slots = u.layout === 'grid' ? per / 2 : per;
-    const base = { large: z.ch, compact: z.rh, grid: z.gh }[u.layout];
+    const base = { large: cardH(z), compact: z.rh, grid: z.gh }[u.layout];
     const h = Math.max(base, Math.floor(((paged ? 220 : 254) - 4 - (slots - 1) * gap) / slots));
-    const room = u.layout === 'large' && h >= roomFor3(z);
+    const room = u.layout === 'large' && z.fn >= 16;
     return this.hdr()
       + `<div class="list l-${u.layout}" style="--ch:${h}px;--rh:${h}px;--gh:${h}px">${ss.slice(from, from + per).map(x => L.item(x, s.now, T, room)).join('')}</div>`
       + (paged ? `<div class="pager">${pb('up', above, u.page === 0)}<span class="pn">${u.page + 1} / ${pages}${s.sessions_more ? ` · +${s.sessions_more}` : ''}</span>${pb('down', below, u.page === pages - 1)}</div>` : '')
@@ -557,7 +563,7 @@ class Board {
       this.phraseAt = Date.now();
     }
     this.emptyNow = true;
-    return this.hdr() + `<div class="empty">${icon('coffee', 30)}<div class="ph">${T.phrases[this.phrase]}</div>
+    return this.hdr() + `<div class="empty big">${icon('coffee', 56)}<div class="ph">${T.phrases[this.phrase]}</div>
       <div class="sub">${T.noAgents}</div></div>` + this.ftr();
   }
   lostHTML() {

@@ -63,9 +63,10 @@ lv_color_t hex(uint32_t c) { return lv_color_hex(c); }
 lv_color_t mix(uint32_t a, uint32_t b, lv_opa_t k) { return lv_color_mix(hex(a), hex(b), k); }
 
 /* ---------- fonts: pre-rendered into flash by tools/gen_fonts.py — no RAM, fastest to draw ---------- */
-const lv_font_t* icons(int px) { return icon_font(px); }  // 12, 16 or 30 px
+const lv_font_t* icons(int px) { return icon_font(px); }  // 12, 16, 30 or 56 px
 
 const lv_font_t* font(int px, bool semi = false) {
+  if (px >= TITLE_PX) return TITLE_FONT;  // semibold only
   return TEXT_FONTS[semi][constrain(px, TEXT_PX_MIN, TEXT_PX_MAX) - TEXT_PX_MIN];
 }
 
@@ -587,9 +588,9 @@ void build_empty(lv_obj_t* scr) {
   }
   was_empty = true;
   lv_obj_t* c = center_column(scr);
-  icon(c, icon::coffee, 30, t.mut);
-  centered(text(c, T().phrases[phrase], 15, true, t.fg), 200, 15, true);
-  text(c, T().no_agents, 12, false, t.mut);
+  icon(c, icon::coffee, 56, t.mut);
+  centered(text(c, T().phrases[phrase], TITLE_PX, true, t.fg), 216, TITLE_PX, true);
+  text(c, T().no_agents, 14, false, t.mut);
 }
 
 void build_main(lv_obj_t* scr) {
@@ -601,8 +602,11 @@ void build_main(lv_obj_t* scr) {
     return;
   }
   const Size& z = sz();
+  // the third card line belongs to big text: its cards are made tall enough for it (3 a page instead of 4)
+  bool big = cfg.layout == 0 && z.fn >= 16;
+  int card_h = big ? 4 + z.fn + 3 + 1 + 2 * (z.ft + 3) + 9 : z.card;  // same rule as the mockup
   auto cap = [&](int a) {
-    return cfg.layout == 0 ? a / (z.card + 4) : cfg.layout == 1 ? (a - 2) / (z.row + 2) : a / (z.cell + 4) * 2;
+    return cfg.layout == 0 ? a / (card_h + 4) : cfg.layout == 1 ? (a - 2) / (z.row + 2) : a / (z.cell + 4) * 2;
   };
   int n = ss.size(), cap_all = cap(LIST - 4), cap_paged = cap(LIST - PAGER - 4);
   bool paged = n > cap_all;
@@ -611,12 +615,10 @@ void build_main(lv_obj_t* scr) {
   int from = page * per, to = min(n, from + per), y = HDR + 4;
   // stretch items so the page slots fill the list area; by slots, not sessions, so the last page looks the same
   int gap = cfg.layout == 1 ? 2 : 4, slots = cfg.layout == 2 ? per / 2 : per;
-  int base = cfg.layout == 0 ? z.card : cfg.layout == 1 ? z.row : z.cell;
+  int base = cfg.layout == 0 ? card_h : cfg.layout == 1 ? z.row : z.cell;
   int h = max(base, ((paged ? LIST - PAGER : LIST) - 4 - (slots - 1) * gap) / slots);
-  // a third card line fits only with big text when the page is short of slots (same rule as the mockup)
-  bool room = cfg.layout == 0 && h >= 4 + z.fn + 3 + 1 + 2 * (z.ft + 3) + 9;
   for (int i = from; i < to; i++) {
-    if (cfg.layout == 0) { card(scr, ss[i], y, h, room); y += h + gap; }
+    if (cfg.layout == 0) { card(scr, ss[i], y, h, big); y += h + gap; }
     else if (cfg.layout == 1) { row(scr, ss[i], y, h); y += h + gap; }
     else { int k = i - from; cell(scr, ss[i], 4 + (k % 2) * ((W - 12) / 2 + 4), HDR + 4 + (k / 2) * (h + gap), h); }
   }

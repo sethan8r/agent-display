@@ -19,9 +19,11 @@ extern const lv_font_t inter_600_13;
 extern const lv_font_t inter_600_14;
 extern const lv_font_t inter_600_15;
 extern const lv_font_t inter_600_16;
+extern const lv_font_t inter_600_24;
 extern const lv_font_t fa_solid_12;
 extern const lv_font_t fa_solid_16;
 extern const lv_font_t fa_solid_30;
+extern const lv_font_t fa_solid_56;
 #ifdef __cplusplus
 }
 #endif
@@ -31,4 +33,6 @@ inline const lv_font_t* const TEXT_FONTS[2][TEXT_PX_MAX - TEXT_PX_MIN + 1] = {
   {&inter_400_10, &inter_400_11, &inter_400_12, &inter_400_13, &inter_400_14, &inter_400_15, &inter_400_16},
   {&inter_600_10, &inter_600_11, &inter_600_12, &inter_600_13, &inter_600_14, &inter_600_15, &inter_600_16},
 };
-inline const lv_font_t* icon_font(int px) { return px <= 12 ? &fa_solid_12 : px <= 16 ? &fa_solid_16 : &fa_solid_30; }
+constexpr int TITLE_PX = 24;
+inline const lv_font_t* const TITLE_FONT = &inter_600_24;
+inline const lv_font_t* icon_font(int px) { return px <= 12 ? &fa_solid_12 : px <= 16 ? &fa_solid_16 : px <= 30 ? &fa_solid_30 : &fa_solid_56; }
