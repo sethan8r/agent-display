@@ -1,0 +1,7 @@
+# keep CAD and firmware files byte-exact (autocrlf must not touch them)
+*.stl  binary
+*.3mf  binary
+*.step binary
+*.stp  binary
+*.f3d  binary
+*.bin  binary
