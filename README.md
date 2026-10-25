@@ -81,9 +81,9 @@ Click a topic to expand it.
     and is dashed when unknown (start of a session, right after `/compact`).
 - **Order** — by start time, new sessions at the end. Rows never jump: a waiting session is not moved
   to the top, it blinks where it is.
-- **▲ ▼** — appear when sessions don't fit. A yellow badge like **⚠ 1 below** tells you that someone
-  waiting for you is on another page.
-- **Footer** — plan limits: 5-hour window and week, % used, **↻** reset time. "reset" — the window
+- **▲ ▼** — appear when sessions don't fit. A blinking yellow **⚠** on an arrow tells you that someone
+  waiting for you is on that side.
+- **Footer** — plan limits: 5-hour window and week, % used, reset time. "reset" — the window
   has already reset. Grey — no fresh data from the PC.
 - Tap a session — details.
 

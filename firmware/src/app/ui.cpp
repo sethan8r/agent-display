@@ -52,6 +52,7 @@ struct Blink {
   lv_obj_t* o;
   lv_color_t bg_on, bg_off;
   lv_opa_t border_on, border_off;
+  bool fade;  // blink the whole object (an icon) instead of its background
 };
 std::vector<Blink> blinks;
 std::vector<lv_obj_t*> marquees;
@@ -229,12 +230,13 @@ lv_obj_t* badge(lv_obj_t* parent, const char* g, const String& s, lv_color_t bg,
 }
 
 void blink_apply(const Blink& b) {
+  if (b.fade) { lv_obj_set_style_opa(b.o, blink_on ? LV_OPA_COVER : 50, 0); return; }
   lv_obj_set_style_bg_color(b.o, blink_on ? b.bg_on : b.bg_off, 0);
   if (b.border_on != b.border_off) lv_obj_set_style_border_opa(b.o, blink_on ? b.border_on : b.border_off, 0);
 }
 
 void blink(lv_obj_t* o, lv_color_t on, lv_color_t off, lv_opa_t border_on = 0, lv_opa_t border_off = 0) {
-  blinks.push_back({o, on, off, border_on, border_off});
+  blinks.push_back({o, on, off, border_on, border_off, false});
   blink_apply(blinks.back());
 }
 
@@ -445,10 +447,7 @@ void limit_col(lv_obj_t* f, int x, int w, const Limit& l, const char* name, bool
   lv_obj_set_pos(v, x + width_of(n) + 4, reset ? 6 : 5);
   if (l.has && !reset && !stale) {
     lv_obj_t* r = text(f, reset_label(l.reset), 11, false, mut);
-    int rx = x + w - width_of(r);
-    lv_obj_set_pos(r, rx, 6);
-    lv_obj_t* ri = icon(f, icon::refresh, ICON_SMALL, mut);
-    lv_obj_set_pos(ri, rx - width_of(ri) - 3, 6 + icon_dy(icon::refresh, ICON_SMALL, 11, false));
+    lv_obj_set_pos(r, x + w - width_of(r), 6);
   }
   int pct = l.has && !reset ? l.pct : 0;
   bar(f, x, 25, w, 4, pct, stale ? t.dim : level_color(pct, t.work));
@@ -544,17 +543,18 @@ void cell(lv_obj_t* scr, const Session& s, int x, int y) {
   ctx_bar(o, 6, r2 + line_h(z.fs) + 4, inner, 3, s.ctx);
 }
 
-void page_button(lv_obj_t* scr, int x, int y, const char* ic, int waits, const char* word, bool enabled, lv_event_cb_t cb) {
+void page_button(lv_obj_t* scr, int x, int y, const char* ic, bool waiting, bool enabled, lv_event_cb_t cb) {
   const Theme& t = th();
   lv_obj_t* b = round(fill(box(scr, x, y, 84, 30), hex(t.panel2)), 7);
   if (enabled) on(b, cb);
   else lv_obj_set_style_opa(b, 77, 0);
   lv_obj_t* il = icon(b, ic, ICON, t.fg);
-  if (!waits) { lv_obj_center(il); return; }
-  lv_obj_align(il, LV_ALIGN_LEFT_MID, 6, 0);
-  lv_obj_t* bd = badge(b, icon::warn, String(waits) + " " + word, hex(t.wait), INK_ON_WAIT);
-  lv_obj_align(bd, LV_ALIGN_RIGHT_MID, -4, 0);
-  blink(bd, hex(t.wait), mix(t.wait, t.panel2, 90));
+  if (!waiting) { lv_obj_center(il); return; }
+  lv_obj_align(il, LV_ALIGN_CENTER, -12, 0);
+  lv_obj_t* w = icon(b, icon::warn, ICON, t.wait);
+  lv_obj_align(w, LV_ALIGN_CENTER, 12, 0);
+  blinks.push_back({w, {}, {}, 0, 0, true});
+  blink_apply(blinks.back());
 }
 
 lv_obj_t* center_column(lv_obj_t* scr) {
@@ -608,15 +608,15 @@ void build_main(lv_obj_t* scr) {
     else { int k = i - from; cell(scr, ss[i], 4 + (k % 2) * ((W - 12) / 2 + 4), HDR + 4 + (k / 2) * (z.cell + 4)); }
   }
   if (paged) {
-    int above = 0, below = 0;  // sessions waiting for you on other pages
+    int above = 0, below = 0;  // sessions waiting for you on other pages: a blinking ⚠ on that arrow
     for (int i = 0; i < n; i++) {
       if (!is_wait(ss[i])) continue;
       if (i < from) above++;
       else if (i >= to) below++;
     }
     int py = H - FTR - PAGER + 2;
-    page_button(scr, 4, py, icon::up, above, T().above, page > 0, cb_up);
-    page_button(scr, W - 88, py, icon::down, below, T().below, page < pages - 1, cb_down);
+    page_button(scr, 4, py, icon::up, above > 0, page > 0, cb_up);
+    page_button(scr, W - 88, py, icon::down, below > 0, page < pages - 1, cb_down);
     String pn = String(page + 1) + " / " + pages + (snap.sessions_more ? String(" · +") + snap.sessions_more : String());
     lv_obj_align(text(scr, pn, 11, false, th().mut), LV_ALIGN_BOTTOM_MID, 0, -FTR - PAGER / 2 + 6);
   }

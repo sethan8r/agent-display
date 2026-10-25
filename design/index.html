@@ -144,8 +144,8 @@ body.cap { background:transparent; }
 .pager { height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:2px 4px; }
 .pg { width:84px; height:30px; border-radius:7px; background:var(--panel2) !important; display:flex; align-items:center; justify-content:center; gap:4px; }
 .pg:disabled { opacity:.3; cursor:default; }
-.pg .pw { white-space:nowrap; display:flex; align-items:center; gap:2px; background:var(--wait); color:#1A1200; font-size:11px; font-weight:700; border-radius:6px; padding:0 4px 0 3px; line-height:15px; }
-.boff .pg .pw { background:color-mix(in srgb, var(--wait) 35%, transparent); }
+.pg .pw { display:flex; color:var(--wait); }
+.boff .pg .pw { opacity:.2; }
 .pn { color:var(--mut); font-size:11px; font-variant-numeric:tabular-nums; }
 
 .ftr { height:36px; flex:none; border-top:1px solid var(--line); display:flex; gap:10px; padding:5px 8px 0; }
@@ -273,7 +273,7 @@ const L10N = {
     layout: 'Раскладка', large: 'Крупно', compact: 'Компактно', grid: 'Сетка', recal: 'Перекалибровать экран',
     calibSaved: 'Калибровка сохранена', fwAvail: 'Есть прошивка', fw: 'Прошивка', proto: 'протокол', ctx: 'Контекст', nodata: 'нет данных',
     subagents: 'Субагенты', more: 'ещё', opened: 'открыта', limNo: 'Лимиты: нет данных', h5: '5ч', wk: 'Нед', reset: 'сброшен',
-    above: 'выше', below: 'ниже', noAgents: 'Агентов нет', hubLost: 'Хаб не подключён',
+    noAgents: 'Агентов нет', hubLost: 'Хаб не подключён',
     hubLostSub: 'Комп выключен или Claude Code работает без плагина agent-display', limStale: 'Лимиты внизу давно не обновлялись',
     plugNewer: 'Плагин новее прошивки', fwNewer: 'Прошивка новее плагина', updFw: 'Обнови прошивку', updPlug: 'Обнови плагин', inCC: '— в Claude Code:',
     calibT: 'Калибровка экрана', calibS: 'Нажми стилусом точно в центр крестика', thinking: 'Думает…', waitSubs: 'Ждёт субагентов',
@@ -291,7 +291,7 @@ const L10N = {
     layout: 'Layout', large: 'Large', compact: 'Compact', grid: 'Grid', recal: 'Recalibrate touch',
     calibSaved: 'Calibration saved', fwAvail: 'Firmware available', fw: 'Firmware', proto: 'protocol', ctx: 'Context', nodata: 'no data',
     subagents: 'Subagents', more: 'more', opened: 'open', limNo: 'Limits: no data', h5: '5h', wk: 'Wk', reset: 'reset',
-    above: 'above', below: 'below', noAgents: 'No agents', hubLost: 'Hub not connected',
+    noAgents: 'No agents', hubLost: 'Hub not connected',
     hubLostSub: 'PC is off or Claude Code runs without the agent-display plugin', limStale: 'Limits below are out of date',
     plugNewer: 'Plugin is newer than firmware', fwNewer: 'Firmware is newer than plugin', updFw: 'Update the firmware', updPlug: 'Update the plugin', inCC: 'in Claude Code:',
     calibT: 'Touch calibration', calibS: 'Tap the exact center of the cross with a stylus', thinking: 'Thinking…', waitSubs: 'Waiting for subagents',
@@ -461,7 +461,7 @@ class Board {
       if (!w) return `<div class="lim"><div class="lr"><b>${label}</b><span class="v">—</span></div>${bar(0)}</div>`;
       const done = now != null && now >= w.reset;
       return `<div class="lim"><div class="lr"><b>${label}</b>${done ? `<span class="rs">${T.reset}</span>` : `<span class="v">${w.pct}%</span>`}
-        ${done || now == null ? '' : `<span class="rt">${icon('refresh', 11)}${resetLabel(w.reset, now, s.tz, T)}</span>`}</div>
+        ${done || now == null ? '' : `<span class="rt">${resetLabel(w.reset, now, s.tz, T)}</span>`}</div>
         <div class="bar"><i class="${lvl(w.pct)}" style="width:${done ? 0 : w.pct}%"></i></div></div>`;
     };
     return `<div class="ftr ${ok ? '' : 'stale'}">${col('5h', T.h5)}${col('7d', T.wk)}</div>`;
@@ -473,7 +473,7 @@ class Board {
     u.page = Math.min(Math.max(0, u.page), pages - 1);
     const from = u.page * per, waits = ss.map((x, i) => x.status === 'wait' ? i : -1).filter(i => i >= 0);
     const above = waits.filter(i => i < from).length, below = waits.filter(i => i >= from + per).length;
-    const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn', 11)}${n} ${d === 'up' ? T.above : T.below}</span>` : ''}</button>`;
+    const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn')}</span>` : ''}</button>`;
     return this.hdr()
       + `<div class="list l-${u.layout}">${ss.slice(from, from + per).map(x => L.item(x, s.now, T)).join('')}</div>`
       + (paged ? `<div class="pager">${pb('up', above, u.page === 0)}<span class="pn">${u.page + 1} / ${pages}${s.sessions_more ? ` · +${s.sessions_more}` : ''}</span>${pb('down', below, u.page === pages - 1)}</div>` : '')
