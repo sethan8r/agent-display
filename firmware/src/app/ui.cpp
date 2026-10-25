@@ -17,8 +17,8 @@ extern const uint8_t inter400[] asm("_binary_fonts_Inter_400_ttf_start");
 extern const uint8_t inter400_end[] asm("_binary_fonts_Inter_400_ttf_end");
 extern const uint8_t inter600[] asm("_binary_fonts_Inter_600_ttf_start");
 extern const uint8_t inter600_end[] asm("_binary_fonts_Inter_600_ttf_end");
-extern const uint8_t lucide[] asm("_binary_fonts_lucide_ttf_start");
-extern const uint8_t lucide_end[] asm("_binary_fonts_lucide_ttf_end");
+extern const uint8_t fa_solid[] asm("_binary_fonts_fa_solid_ttf_start");
+extern const uint8_t fa_solid_end[] asm("_binary_fonts_fa_solid_ttf_end");
 
 namespace ui {
 namespace {
@@ -27,6 +27,7 @@ constexpr int W = cyd::W, H = cyd::H;
 constexpr int HDR = 30, FTR = 36, PAGER = 34, LIST = H - HDR - FTR;  // list area: 254, or 220 with the pager
 constexpr uint32_t LOST_MS = 6000, DETAILS_MS = 30000, PHRASE_MS = 120000, TOAST_MS = 2500;
 constexpr uint32_t INK_ON_WAIT = 0x1A1200;  // text on yellow badges
+constexpr int ICON = 16, ICON_SMALL = 12, SLOT = 20;  // icons are 16 px whatever the text size; 12 inside small badges
 
 enum Screen { MAIN, DETAILS, SETTINGS, CALIB };
 enum SettingId { SET_THEME, SET_LANG, SET_SIZE, SET_LAYOUT };
@@ -45,7 +46,7 @@ int page = 0;
 String sel, shown_key;
 uint32_t touch_ms = 0, details_ms = 0, toast_ms = 0, phrase_ms = 0;
 int phrase = -1;
-bool dirty = true, was_empty = false, empty_before = false, blink_on = true;
+bool dirty = true, was_empty = false, empty_before = false, blink_on = true, fonts_stale = false;
 
 struct Blink {
   lv_obj_t* o;
@@ -66,28 +67,50 @@ bool ok() { return !lost() && snap.v == PROTO; }
 lv_color_t hex(uint32_t c) { return lv_color_hex(c); }
 lv_color_t mix(uint32_t a, uint32_t b, lv_opa_t k) { return lv_color_mix(hex(a), hex(b), k); }
 
-/* ---------- fonts: TinyTTF renders Inter and the Lucide icons at any size ---------- */
+/* ---------- fonts: TinyTTF renders Inter and the Font Awesome icons at any size ---------- */
+// every font keeps its own glyph cache, so: small caches, few sizes, and drop them all when the text size changes
 lv_font_t* icon_fonts[41];
 lv_font_t* text_fonts[2][41];
 
 const lv_font_t* icons(int px) {
   lv_font_t*& f = icon_fonts[px];
-  if (!f) f = lv_tiny_ttf_create_data_ex(lucide, lucide_end - lucide, px, LV_FONT_KERNING_NONE, 16);
+  if (!f) f = lv_tiny_ttf_create_data_ex(fa_solid, fa_solid_end - fa_solid, px, LV_FONT_KERNING_NONE, 16);
   return f;
 }
 
-// small glyph caches: the default (128 per font) runs the heap out with a dozen fonts
 const lv_font_t* font(int px, bool semi = false) {
   lv_font_t*& f = text_fonts[semi][px];
-  if (!f) {
-    f = semi ? lv_tiny_ttf_create_data_ex(inter600, inter600_end - inter600, px, LV_FONT_KERNING_NONE, 32)
-             : lv_tiny_ttf_create_data_ex(inter400, inter400_end - inter400, px, LV_FONT_KERNING_NONE, 32);
-    f->fallback = icons(px);  // so one label can mix text and icons
-  }
+  if (!f) f = semi ? lv_tiny_ttf_create_data_ex(inter600, inter600_end - inter600, px, LV_FONT_KERNING_NONE, 32)
+                   : lv_tiny_ttf_create_data_ex(inter400, inter400_end - inter400, px, LV_FONT_KERNING_NONE, 32);
   return f;
+}
+
+void free_fonts() {  // only when no label uses them
+  for (lv_font_t*& f : icon_fonts)
+    if (f) { lv_tiny_ttf_destroy(f); f = nullptr; }
+  for (auto& w : text_fonts)
+    for (lv_font_t*& f : w)
+      if (f) { lv_tiny_ttf_destroy(f); f = nullptr; }
 }
 
 int line_h(int px, bool semi = false) { return lv_font_get_line_height(font(px, semi)); }
+
+uint32_t codepoint(const char* s) {  // icons are 3-byte UTF-8 (U+E000..U+FFFF)
+  const uint8_t* u = (const uint8_t*)s;
+  return ((u[0] & 0x0F) << 12) | ((u[1] & 0x3F) << 6) | (u[2] & 0x3F);
+}
+
+// vertical center of a glyph's ink inside a label of that font
+int glyph_center(const lv_font_t* f, uint32_t cp) {
+  lv_font_glyph_dsc_t g;
+  if (!lv_font_get_glyph_dsc(f, &g, cp, 0)) return lv_font_get_line_height(f) / 2;
+  return lv_font_get_line_height(f) - f->base_line - (g.box_h + g.ofs_y) + g.box_h / 2;
+}
+
+// how far an icon label must sit below a text label's top so the icon centers on the capital letters
+int icon_dy(const char* g, int px, int text_px, bool semi) {
+  return glyph_center(font(text_px, semi), '0') - glyph_center(icons(px), codepoint(g));
+}
 
 /* ---------- builders ---------- */
 lv_obj_t* box(lv_obj_t* parent, int x, int y, int w, int h) {
@@ -135,6 +158,41 @@ int width_of(lv_obj_t* o) {
   return lv_obj_get_width(o);
 }
 
+lv_obj_t* icon(lv_obj_t* parent, const char* g, int px, uint32_t color) {
+  lv_obj_t* l = lv_label_create(parent);
+  lv_label_set_text(l, g);
+  lv_obj_set_style_text_font(l, icons(px), 0);
+  lv_obj_set_style_text_color(l, hex(color), 0);
+  return l;
+}
+
+// icon centered in a SLOT-wide column at x, on the text line whose label top is y
+lv_obj_t* icon_at(lv_obj_t* p, const char* g, int px, uint32_t color, int x, int y, int text_px, bool semi = false) {
+  lv_obj_t* l = icon(p, g, px, color);
+  lv_obj_set_pos(l, x + (SLOT - width_of(l)) / 2, y + icon_dy(g, px, text_px, semi));
+  return l;
+}
+
+// icon in a flex row: boxes get centered, so shift the icon onto the text's capital letters
+lv_obj_t* icon_in_row(lv_obj_t* row, const char* g, int px, uint32_t color, int text_px, bool semi = false) {
+  lv_obj_t* l = icon(row, g, px, color);
+  int dy = (lv_font_get_line_height(icons(px)) - line_h(text_px, semi)) / 2 + icon_dy(g, px, text_px, semi);
+  lv_obj_set_style_translate_y(l, dy, 0);
+  return l;
+}
+
+lv_obj_t* hrow(lv_obj_t* parent, int w, int gap = 5) {
+  lv_obj_t* r = lv_obj_create(parent);
+  lv_obj_remove_style_all(r);
+  lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(r, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(r, w, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(r, gap, 0);
+  return r;
+}
+
 lv_obj_t* one_line(lv_obj_t* l, int w, int px, bool semi = false) {  // cut with "…"
   lv_obj_set_size(l, w, line_h(px, semi));
   lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_DOTS);
@@ -159,15 +217,13 @@ lv_obj_t* marquee(lv_obj_t* parent, int x, int y, int w, const String& s, int px
   return clip;
 }
 
-lv_obj_t* badge(lv_obj_t* parent, const String& s, lv_color_t bg, uint32_t ink) {
-  lv_obj_t* b = lv_obj_create(parent);
-  lv_obj_remove_style_all(b);
-  lv_obj_remove_flag(b, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_remove_flag(b, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_size(b, LV_SIZE_CONTENT, 16);
+lv_obj_t* badge(lv_obj_t* parent, const char* g, const String& s, lv_color_t bg, uint32_t ink) {
+  lv_obj_t* b = hrow(parent, LV_SIZE_CONTENT, 3);
+  lv_obj_set_height(b, 16);
   lv_obj_set_style_pad_hor(b, 6, 0);
   round(fill(b, bg), 8);
-  lv_obj_center(text(b, s, 11, true, ink));
+  if (g) icon_in_row(b, g, ICON_SMALL, ink, 11, true);
+  text(b, s, 11, true, ink);
   lv_obj_update_layout(b);
   return b;
 }
@@ -319,7 +375,7 @@ void cb_setting(lv_event_t* e) {
   int v = arg(e), id = v >> 8, val = v & 0xFF;
   if (id == SET_THEME) cfg.theme = val;
   else if (id == SET_LANG) cfg.lang = val;
-  else if (id == SET_SIZE) { cfg.size = val; page = 0; }
+  else if (id == SET_SIZE) { cfg.size = val; page = 0; fonts_stale = true; }
   else if (id == SET_LAYOUT) { cfg.layout = val; page = 0; }
   settings::save(cfg);
   dirty = true;
@@ -350,19 +406,19 @@ void header(lv_obj_t* scr) {
     int n = snap.sessions.size() + snap.sessions_more, waits = 0;
     for (auto& s : snap.sessions) waits += is_wait(s);
     if (n) {
-      lv_obj_t* c = badge(h, String(n), hex(t.panel2), t.mut);
+      lv_obj_t* c = badge(h, nullptr, String(n), hex(t.panel2), t.mut);
       lv_obj_align_to(c, prev, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
       prev = c;
     }
     if (waits) {
-      lv_obj_t* c = badge(h, String(icon::warn) + waits, hex(t.wait), INK_ON_WAIT);
+      lv_obj_t* c = badge(h, icon::warn, String(waits), hex(t.wait), INK_ON_WAIT);
       lv_obj_align_to(c, prev, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
       blink(c, hex(t.wait), mix(t.wait, t.bg, 90));
     }
   }
   lv_obj_align(text(h, lost() ? "--:--" : hhmm(snap.now).c_str(), 12, false, t.mut), LV_ALIGN_RIGHT_MID, -40, 0);
   lv_obj_t* gear = box(h, W - 36, 0, 36, HDR);
-  lv_obj_center(text(gear, icon::gear, 16, false, t.mut));
+  lv_obj_center(icon(gear, icon::gear, ICON, t.mut));
   on(gear, cb_settings);
   if (ok() && snap.fw_update.length()) round(fill(box(gear, 24, 6, 6, 6), hex(t.done)), 3);
 }
@@ -370,7 +426,10 @@ void header(lv_obj_t* scr) {
 void back_header(lv_obj_t* scr, const char* title) {
   lv_obj_t* h = bar_top(scr);
   lv_obj_t* b = box(h, 0, 0, 80, HDR);
-  lv_obj_align(text(b, String(icon::back) + " " + T().back, 13, true, th().work), LV_ALIGN_LEFT_MID, 6, 0);
+  lv_obj_t* r = hrow(b, LV_SIZE_CONTENT, 4);
+  icon_in_row(r, icon::back, ICON, th().work, 13, true);
+  text(r, T().back, 13, true, th().work);
+  lv_obj_align(r, LV_ALIGN_LEFT_MID, 6, 0);
   on(b, cb_back);
   if (title) lv_obj_align(text(h, title, 13, true, th().fg), LV_ALIGN_LEFT_MID, 84, 0);
 }
@@ -385,8 +444,11 @@ void limit_col(lv_obj_t* f, int x, int w, const Limit& l, const char* name, bool
                      reset ? t.done : fg);
   lv_obj_set_pos(v, x + width_of(n) + 4, reset ? 6 : 5);
   if (l.has && !reset && !stale) {
-    lv_obj_t* r = text(f, String(icon::refresh) + reset_label(l.reset), 11, false, mut);
-    lv_obj_set_pos(r, x + w - width_of(r), 6);
+    lv_obj_t* r = text(f, reset_label(l.reset), 11, false, mut);
+    int rx = x + w - width_of(r);
+    lv_obj_set_pos(r, rx, 6);
+    lv_obj_t* ri = icon(f, icon::refresh, ICON_SMALL, mut);
+    lv_obj_set_pos(ri, rx - width_of(ri) - 3, 6 + icon_dy(icon::refresh, ICON_SMALL, 11, false));
   }
   int pct = l.has && !reset ? l.pct : 0;
   bar(f, x, 25, w, 4, pct, stale ? t.dim : level_color(pct, t.work));
@@ -437,12 +499,12 @@ void card(lv_obj_t* scr, const Session& s, int y) {
   const char* ic;
   String txt;
   line2(s, ic, txt);
-  lv_obj_set_pos(text(o, ic, z.ft, false, c), 7, r2);
+  icon_at(o, ic, ICON, c, 5, r2, z.ft, is_wait(s));
   lv_obj_t* pc = text(o, s.ctx < 0 ? String() : String(s.ctx) + "%", z.fs, false, t.mut);
   int pw = width_of(pc);
   lv_obj_set_pos(pc, 7 + inner - pw, r2 + 1);
   uint32_t ink = is_wait(s) ? t.wait_ink : s.status == "error" ? c : t.mut;
-  lv_obj_set_pos(one_line(text(o, txt, z.ft, is_wait(s), ink), inner - z.ft - 4 - pw - 6, z.ft, is_wait(s)), 7 + z.ft + 4, r2);
+  lv_obj_set_pos(one_line(text(o, txt, z.ft, is_wait(s), ink), inner - SLOT - 2 - pw - 6, z.ft, is_wait(s)), 5 + SLOT + 4, r2);
   ctx_bar(o, 7, r2 + line_h(z.ft) + 4, inner, 3, s.ctx);
 }
 
@@ -453,7 +515,6 @@ void row(lv_obj_t* scr, const Session& s, int y) {
   int w = W - 8;
   lv_obj_t* o = tile(scr, s, 4, y, w, z.row, 5, false);
   fill(box(o, 0, 0, 4, z.row), hex(c), dimmed(s) ? 128 : LV_OPA_COVER);
-  lv_obj_align(text(o, st_icon(s), z.ft, false, c), LV_ALIGN_LEFT_MID, 10, 0);
   lv_obj_t* vb = round(fill(box(o, w - 9, (z.row - 16) / 2, 4, 16), hex(t.panel2)), 2);
   if (s.ctx > 0) {
     int hh = max(2, 16 * min(s.ctx, 100) / 100);
@@ -462,8 +523,9 @@ void row(lv_obj_t* scr, const Session& s, int y) {
   lv_obj_t* tm = text(o, time_text(s, true), z.fs, false, t.mut);
   int tw = width_of(tm);
   lv_obj_align(tm, LV_ALIGN_RIGHT_MID, -15, 0);
-  int nx = 10 + z.ft + 6, lh = line_h(z.fn - 1, true);
-  marquee(o, nx, (z.row - lh) / 2, w - nx - 15 - tw - 6, s.name, z.fn - 1, true, t.fg);
+  int nx = 7 + SLOT + 4, ny = (z.row - line_h(z.fn - 1, true)) / 2;
+  icon_at(o, st_icon(s), ICON, c, 7, ny, z.fn - 1, true);
+  marquee(o, nx, ny, w - nx - 15 - tw - 6, s.name, z.fn - 1, true, t.fg);
 }
 
 void cell(lv_obj_t* scr, const Session& s, int x, int y) {
@@ -474,11 +536,11 @@ void cell(lv_obj_t* scr, const Session& s, int x, int y) {
   lv_obj_t* o = tile(scr, s, x, y, w, z.cell, 8, true);
   marquee(o, 6, 3, inner, s.name, z.fn - 1, true, t.fg);
   int r2 = 3 + line_h(z.fn - 1, true) + 1;
-  lv_obj_set_pos(text(o, st_icon(s), z.fs, false, c), 6, r2);
+  icon_at(o, st_icon(s), ICON, c, 4, r2, z.fs, is_wait(s));
   String tt = time_text(s, true);
   String lbl = String(st_label(s, true)) + (tt.length() ? String(" · ") + tt : String());
-  lv_obj_set_pos(one_line(text(o, lbl, z.fs, is_wait(s), is_wait(s) ? t.wait_ink : t.mut), inner - z.fs - 4, z.fs, is_wait(s)),
-                 6 + z.fs + 4, r2);
+  lv_obj_set_pos(one_line(text(o, lbl, z.fs, is_wait(s), is_wait(s) ? t.wait_ink : t.mut), inner - SLOT, z.fs, is_wait(s)),
+                 4 + SLOT + 2, r2);
   ctx_bar(o, 6, r2 + line_h(z.fs) + 4, inner, 3, s.ctx);
 }
 
@@ -487,10 +549,10 @@ void page_button(lv_obj_t* scr, int x, int y, const char* ic, int waits, const c
   lv_obj_t* b = round(fill(box(scr, x, y, 84, 30), hex(t.panel2)), 7);
   if (enabled) on(b, cb);
   else lv_obj_set_style_opa(b, 77, 0);
-  lv_obj_t* il = text(b, ic, 14, false, t.fg);
+  lv_obj_t* il = icon(b, ic, ICON, t.fg);
   if (!waits) { lv_obj_center(il); return; }
   lv_obj_align(il, LV_ALIGN_LEFT_MID, 6, 0);
-  lv_obj_t* bd = badge(b, String(icon::warn) + waits + " " + word, hex(t.wait), INK_ON_WAIT);
+  lv_obj_t* bd = badge(b, icon::warn, String(waits) + " " + word, hex(t.wait), INK_ON_WAIT);
   lv_obj_align(bd, LV_ALIGN_RIGHT_MID, -4, 0);
   blink(bd, hex(t.wait), mix(t.wait, t.panel2, 90));
 }
@@ -518,7 +580,7 @@ void build_empty(lv_obj_t* scr) {
   }
   was_empty = true;
   lv_obj_t* c = center_column(scr);
-  text(c, icon::coffee, 30, false, t.mut);
+  icon(c, icon::coffee, 30, t.mut);
   centered(text(c, T().phrases[phrase], 15, true, t.fg), 200, 15, true);
   text(c, T().no_agents, 12, false, t.mut);
 }
@@ -561,21 +623,13 @@ void build_main(lv_obj_t* scr) {
   footer(scr);
 }
 
-lv_obj_t* hrow(lv_obj_t* parent, int w) {
-  lv_obj_t* r = box(parent, 0, 0, w, LV_SIZE_CONTENT);
-  lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_column(r, 5, 0);
-  return r;
-}
-
 void build_details(lv_obj_t* scr, const Session& s) {
   const Theme& t = th();
   const Size& z = sz();
   uint32_t c = st_color(s);
   constexpr int CW = W - 20;
   back_header(scr, nullptr);
-  lv_obj_align(badge(scr, st_label(s, true), mix(c, t.bg, 38), c), LV_ALIGN_TOP_RIGHT, -8, 7);
+  lv_obj_align(badge(scr, nullptr, st_label(s, true), mix(c, t.bg, 38), c), LV_ALIGN_TOP_RIGHT, -8, 7);
   // auto-return countdown; created at its current length so a data update doesn't make it jump
   uint32_t idle = millis() - max(details_ms, touch_ms);
   timer_line = fill(box(scr, 0, HDR, W - W * min(idle, DETAILS_MS) / DETAILS_MS, 2), hex(t.line));
@@ -587,7 +641,7 @@ void build_details(lv_obj_t* scr, const Session& s) {
   wrapped(text(col, s.name, z.fn, true, t.fg), CW, z.fn, true, 2);
 
   lv_obj_t* st = hrow(col, CW);
-  text(st, st_icon(s), z.ft, false, c);
+  icon_in_row(st, st_icon(s), ICON, c, z.ft, true);
   text(st, st_label(s, false), z.ft, true, c);
   String tt = time_text(s, false);
   if (tt.length()) text(st, String("· ") + tt, z.ft, false, t.mut);
@@ -607,31 +661,30 @@ void build_details(lv_obj_t* scr, const Session& s) {
     lv_obj_set_style_pad_ver(a, 4, 0);
     lv_obj_set_style_pad_hor(a, 7, 0);
     if (is_wait(s)) blink(a, mix(t.wait, t.panel, t.tint), hex(t.panel));
-    lv_obj_t* ai = text(a, ic, z.ft, false, c);
-    lv_obj_set_pos(ai, 0, 1);
-    lv_obj_set_pos(wrapped(text(a, txt, z.ft, false, t.fg), CW - 14 - z.ft - 6, z.ft, false, 2), z.ft + 6, 0);
+    icon_at(a, ic, ICON, c, -2, 0, z.ft);
+    lv_obj_set_pos(wrapped(text(a, txt, z.ft, false, t.fg), CW - 14 - SLOT - 2, z.ft, false, 2), SLOT + 2, 0);
   }
 
   if (!s.subagents.empty()) {
     text(col, String(T().subagents) + " · " + (int)(s.subagents.size() + s.subagents_more), z.fs, true, t.mut);
     for (auto& a : s.subagents) {
       lv_obj_t* r = hrow(col, CW);
-      text(r, icon::agent, z.ft, false, t.subs);
+      lv_obj_t* ai = icon_in_row(r, icon::agent, ICON, t.subs, z.ft);
       lv_obj_t* ty = text(r, a.type, z.ft, true, t.fg);
-      one_line(text(r, a.task, z.ft, false, t.mut), CW - z.ft - width_of(ty) - 10, z.ft);
+      one_line(text(r, a.task, z.ft, false, t.mut), CW - width_of(ai) - width_of(ty) - 10, z.ft);
     }
     if (s.subagents_more) text(col, String("+") + s.subagents_more + " " + T().more, z.fs, false, t.mut);
   }
 
   lv_obj_t* d = hrow(col, CW);
-  text(d, icon::folder, z.ft, false, t.mut);
-  one_line(text(d, s.dir, z.ft, false, t.mut), CW - z.ft - 5, z.ft);
+  lv_obj_t* fi = icon_in_row(d, icon::folder, ICON, t.mut, z.ft);
+  one_line(text(d, s.dir, z.ft, false, t.mut), CW - width_of(fi) - 5, z.ft);
   lv_obj_t* m = hrow(col, CW);
   if (s.model.length()) {
-    text(m, icon::cpu, z.ft, false, t.mut);
+    icon_in_row(m, icon::cpu, ICON, t.mut, z.ft);
     text(m, s.model + " ·", z.ft, false, t.mut);
   }
-  text(m, icon::clock, z.ft, false, t.mut);
+  icon_in_row(m, icon::clock, ICON, t.mut, z.ft);
   text(m, String(T().opened) + " " + dur((int32_t)(snap.now - s.started), false), z.ft, false, t.mut);
   footer(scr);
 }
@@ -639,14 +692,15 @@ void build_details(lv_obj_t* scr, const Session& s) {
 void section(lv_obj_t* p, int x, int y, const char* label) { lv_obj_set_pos(text(p, label, 11, true, th().mut), x, y); }
 
 void seg(lv_obj_t* p, int x, int y, int w, std::initializer_list<const char*> labels, int cur, int setting,
-         const int* px = nullptr) {
+         const int* px = nullptr, bool icon_labels = false) {
   const Theme& t = th();
   lv_obj_t* s = round(fill(box(p, x, y, w, 34), hex(t.panel2)), 8);
   int n = labels.size(), bw = (w - 4) / n, i = 0;
   for (const char* l : labels) {
     lv_obj_t* b = round(box(s, 2 + i * bw, 2, bw, 30), 6);
     if (i == cur) frame(fill(b, hex(t.panel)), t.line, LV_OPA_COVER, 1);
-    lv_obj_center(text(b, l, px ? px[i] : 12, i == cur, i == cur ? t.fg : t.mut));
+    uint32_t ink = i == cur ? t.fg : t.mut;
+    lv_obj_center(icon_labels ? icon(b, l, ICON, ink) : text(b, l, px ? px[i] : 12, i == cur, ink));
     on(b, cb_setting, setting << 8 | i);
     i++;
   }
@@ -658,15 +712,14 @@ void build_settings(lv_obj_t* scr) {
   int x = 10, w = W - 20, half = (w - 8) / 2, y = HDR + 6;
   section(scr, x, y, T().theme);
   section(scr, x + half + 8, y, T().lang);
-  static const int icon_px[] = {15, 15};
-  seg(scr, x, y + 19, half, {icon::moon, icon::sun}, cfg.theme, SET_THEME, icon_px);
+  seg(scr, x, y + 19, half, {icon::moon, icon::sun}, cfg.theme, SET_THEME, nullptr, true);
   seg(scr, x + half + 8, y + 19, half, {"RU", "EN"}, cfg.lang, SET_LANG);
   y += 59;
   section(scr, x, y, T().size);
   static const int size_px[] = {11, 13, 16};
   seg(scr, x, y + 19, w, {"A", "A", "A"}, cfg.size, SET_SIZE, size_px);
   y += 57;
-  lv_obj_set_pos(text(scr, icon::sun, 14, false, t.mut), x, y + 8);
+  lv_obj_set_pos(icon(scr, icon::sun, ICON, t.mut), x, y + 7);
   lv_obj_t* sl = lv_slider_create(scr);
   lv_obj_set_pos(sl, x + 26, y + 11);
   lv_obj_set_size(sl, w - 26 - 46, 8);
@@ -684,14 +737,21 @@ void build_settings(lv_obj_t* scr) {
   seg(scr, x, y + 19, w, {T().large, T().compact, T().grid}, cfg.layout, SET_LAYOUT);
   y += 59;
   lv_obj_t* b = round(fill(box(scr, x, y + 2, w, 36), hex(t.panel2)), 8);
-  lv_obj_center(text(b, String(icon::target) + "  " + T().recal, 12, true, t.fg));
+  lv_obj_t* rr = hrow(b, LV_SIZE_CONTENT, 6);
+  icon_in_row(rr, icon::target, ICON, t.fg, 12, true);
+  text(rr, T().recal, 12, true, t.fg);
+  lv_obj_center(rr);
   on(b, cb_recal);
 
   lv_obj_t* v = box(scr, 0, H - 30, W, 30);
   lv_obj_set_flex_flow(v, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(v, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   if (ok() && snap.fw_update.length())
-    text(v, String(icon::download) + " " + T().fw_avail + " " + snap.fw_update, 11, true, t.done);
+  {
+    lv_obj_t* ur = hrow(v, LV_SIZE_CONTENT, 4);
+    icon_in_row(ur, icon::download, ICON_SMALL, t.done, 11, true);
+    text(ur, String(T().fw_avail) + " " + snap.fw_update, 11, true, t.done);
+  }
   text(v, String(T().fw) + " " + FW_VERSION + " · " + T().proto + " v" + PROTO, 11, false, t.dim);
 
   if (toast_ms && millis() - toast_ms < TOAST_MS) {
@@ -704,7 +764,7 @@ void build_calib(lv_obj_t* scr) {
   lv_obj_t* c = center_column(scr);
   lv_obj_set_size(c, W, H);
   lv_obj_set_pos(c, 0, 0);
-  text(c, icon::target, 30, false, 0xFF5D5D);
+  icon(c, icon::target, 30, 0xFF5D5D);
   text(c, T().calib_t, 15, true, 0xFFFFFF);
   centered(text(c, T().calib_s, 12, false, 0x9AA3B2), 200, 12, false);
   text(c, T().calib_go, 13, true, DARK.work);
@@ -715,7 +775,7 @@ void build_lost(lv_obj_t* scr) {
   const Theme& t = th();
   header(scr);
   lv_obj_t* c = center_column(scr);
-  text(c, icon::plug, 30, false, t.mut);
+  icon(c, icon::plug, 30, t.mut);
   text(c, T().hub_lost, 15, true, t.fg);
   centered(text(c, T().hub_lost_sub, 12, false, t.mut), 200, 12, false);
   if (nvs_h5.has || nvs_d7.has) centered(text(c, T().lim_stale, 11, false, t.dim), 200, 11, false);
@@ -727,7 +787,7 @@ void build_mismatch(lv_obj_t* scr) {
   bool newer = snap.v > PROTO;
   header(scr);
   lv_obj_t* c = center_column(scr);
-  text(c, icon::warn, 30, false, t.wait);
+  icon(c, icon::warn, 30, t.wait);
   centered(text(c, newer ? T().plug_newer : T().fw_newer, 15, true, t.fg), 210, 15, true);
   text(c, String(newer ? T().upd_fw : T().upd_plug) + " " + T().in_cc, 12, false, t.mut);
   lv_obj_t* code = round(fill(box(c, 0, 0, LV_SIZE_CONTENT, LV_SIZE_CONTENT), hex(t.panel2)), 6);
@@ -753,6 +813,9 @@ void rebuild() {
   lv_obj_t* old = lv_screen_active();
   lv_obj_t* scr = lv_obj_create(nullptr);
   lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+  lv_screen_load(scr);
+  if (old) lv_obj_delete(old);
+  if (fonts_stale) { free_fonts(); fonts_stale = false; }
   fill(scr, hex(screen == CALIB ? 0x000000 : th().bg));
   if (screen == CALIB) build_calib(scr);
   else if (screen == SETTINGS) build_settings(scr);
@@ -760,8 +823,6 @@ void rebuild() {
   else if (snap.v != PROTO) build_mismatch(scr);
   else if (screen == DETAILS && selected()) build_details(scr, *selected());
   else { screen = MAIN; build_main(scr); }
-  lv_screen_load(scr);
-  if (old) lv_obj_delete(old);
 }
 
 // everything visible that can change without a touch; the screen is rebuilt when this changes

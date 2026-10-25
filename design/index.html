@@ -6,6 +6,7 @@
 <title>agent-display — макеты экранов</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ---------- page chrome ---------- */
@@ -79,7 +80,7 @@ body.cap { background:transparent; }
 .mq > span { display:inline-block; }
 .scr button { font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
 .scr [data-a] { cursor:pointer; }
-.ic { display:inline-block; vertical-align:-2px; flex:none; }
+.ic { display:inline-block; flex:none; text-align:center; line-height:1; }
 .st-idle { --c:var(--idle); } .st-work { --c:var(--work); } .st-subs { --c:var(--subs); }
 .st-wait { --c:var(--wait); } .st-done { --c:var(--done); } .st-error { --c:var(--error); }
 .ell { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
@@ -143,7 +144,7 @@ body.cap { background:transparent; }
 .pager { height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:2px 4px; }
 .pg { width:84px; height:30px; border-radius:7px; background:var(--panel2) !important; display:flex; align-items:center; justify-content:center; gap:4px; }
 .pg:disabled { opacity:.3; cursor:default; }
-.pg .pw { display:flex; align-items:center; gap:2px; background:var(--wait); color:#1A1200; font-size:11px; font-weight:700; border-radius:6px; padding:0 4px 0 3px; line-height:15px; }
+.pg .pw { white-space:nowrap; display:flex; align-items:center; gap:2px; background:var(--wait); color:#1A1200; font-size:11px; font-weight:700; border-radius:6px; padding:0 4px 0 3px; line-height:15px; }
 .boff .pg .pw { background:color-mix(in srgb, var(--wait) 35%, transparent); }
 .pn { color:var(--mut); font-size:11px; font-variant-numeric:tabular-nums; }
 
@@ -256,36 +257,14 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rid = () => Math.random().toString(16).slice(2, 10);
 const nowSec = () => Math.floor(Date.now() / 1000);
 
-/* ---------- icons (on the board: FontAwesome glyphs baked into the LVGL font) ---------- */
-const IC = {
-  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
-  run: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
-  read: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-  find: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/>',
-  web: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/>',
-  agent: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
-  warn: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  question: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  plan: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>',
-  check: '<polyline points="20 6 9 17 4 12"/>',
-  x: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-  dot: '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
-  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-  up: '<polyline points="18 15 12 9 6 15"/>',
-  down: '<polyline points="6 9 12 15 18 9"/>',
-  back: '<polyline points="15 18 9 12 15 6"/>',
-  plug: '<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/><line x1="3" y1="3" x2="21" y2="21"/>',
-  folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
-  cpu: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>',
-  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-  coffee: '<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/>',
-  refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/>',
-  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>',
-  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
-  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>',
-};
-const icon = (n, s = 12) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${IC[n] || IC.dot}</svg>`;
+/* ---------- icons: Font Awesome Solid, the same font the firmware embeds (keep in sync with tools/gen_fonts.py) ---------- */
+const FA_ICONS = { edit: 'pen', run: 'terminal', read: 'file-lines', find: 'magnifying-glass', web: 'globe', agent: 'users',
+  warn: 'triangle-exclamation', question: 'circle-question', plan: 'clipboard-list', check: 'check', x: 'circle-xmark',
+  dot: 'circle', other: 'ellipsis', gear: 'gear', up: 'chevron-up', down: 'chevron-down', back: 'chevron-left',
+  plug: 'plug-circle-xmark', folder: 'folder', cpu: 'microchip', clock: 'clock', coffee: 'mug-hot', refresh: 'rotate-right',
+  download: 'download', sun: 'sun', moon: 'moon', target: 'crosshairs' };
+const ICON = 16;   // next to text, whatever the text size (small badges use 11-12)
+const icon = (n, s = ICON) => `<i class="ic fa-solid fa-${FA_ICONS[n] || 'circle'}" style="font-size:${s}px;width:${s >= ICON ? s + 4 : s}px"></i>`;
 
 /* ---------- UI language: all board text lives on the board, the hub sends none ---------- */
 const L10N = {
@@ -386,13 +365,13 @@ const LAYOUTS = {
       const [ic, txt] = line2(x, T);
       return `<div class="card st-${x.status}" data-a="open" data-v="${x.id}">
         <div class="r1">${nameHTML(x.name)}<span class="tm">${timeText(x, now, T)}</span></div>
-        <div class="r2">${icon(ic, 11)}<span class="ac ell">${esc(txt)}</span><span class="pc">${x.ctx == null ? '' : x.ctx + '%'}</span></div>
+        <div class="r2">${icon(ic)}<span class="ac ell">${esc(txt)}</span><span class="pc">${x.ctx == null ? '' : x.ctx + '%'}</span></div>
         ${bar(x.ctx)}</div>`;
     },
   },
   compact: {
     cap: (a, z) => Math.floor((a - 2) / (z.rh + 2)),
-    item: (x, now, T) => `<div class="row st-${x.status}" data-a="open" data-v="${x.id}"><i class="stripe"></i>${icon(info(x, T).icon, 11)}
+    item: (x, now, T) => `<div class="row st-${x.status}" data-a="open" data-v="${x.id}"><i class="stripe"></i>${icon(info(x, T).icon)}
         ${nameHTML(x.name)}<span class="tm">${timeText(x, now, T, true)}</span>${vbar(x.ctx)}</div>`,
   },
   grid: {
@@ -400,7 +379,7 @@ const LAYOUTS = {
     item: (x, now, T) => {
       const t = timeText(x, now, T, true), i = info(x, T);
       return `<div class="cell st-${x.status}" data-a="open" data-v="${x.id}">${nameHTML(x.name)}
-        <div class="r2">${icon(i.icon, 10)}<span class="ell">${i.short}${t ? ' · ' + t : ''}</span></div>${bar(x.ctx)}</div>`;
+        <div class="r2">${icon(i.icon)}<span class="ell">${i.short}${t ? ' · ' + t : ''}</span></div>${bar(x.ctx)}</div>`;
     },
   },
 };
@@ -482,7 +461,7 @@ class Board {
       if (!w) return `<div class="lim"><div class="lr"><b>${label}</b><span class="v">—</span></div>${bar(0)}</div>`;
       const done = now != null && now >= w.reset;
       return `<div class="lim"><div class="lr"><b>${label}</b>${done ? `<span class="rs">${T.reset}</span>` : `<span class="v">${w.pct}%</span>`}
-        ${done || now == null ? '' : `<span class="rt">${icon('refresh', 9)}${resetLabel(w.reset, now, s.tz, T)}</span>`}</div>
+        ${done || now == null ? '' : `<span class="rt">${icon('refresh', 11)}${resetLabel(w.reset, now, s.tz, T)}</span>`}</div>
         <div class="bar"><i class="${lvl(w.pct)}" style="width:${done ? 0 : w.pct}%"></i></div></div>`;
     };
     return `<div class="ftr ${ok ? '' : 'stale'}">${col('5h', T.h5)}${col('7d', T.wk)}</div>`;
@@ -494,7 +473,7 @@ class Board {
     u.page = Math.min(Math.max(0, u.page), pages - 1);
     const from = u.page * per, waits = ss.map((x, i) => x.status === 'wait' ? i : -1).filter(i => i >= 0);
     const above = waits.filter(i => i < from).length, below = waits.filter(i => i >= from + per).length;
-    const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d, 14)}${n ? `<span class="pw">${icon('warn', 9)}${n} ${d === 'up' ? T.above : T.below}</span>` : ''}</button>`;
+    const pb = (d, n, dis) => `<button class="pg" data-a="${d}" ${dis ? 'disabled' : ''}>${icon(d)}${n ? `<span class="pw">${icon('warn', 11)}${n} ${d === 'up' ? T.above : T.below}</span>` : ''}</button>`;
     return this.hdr()
       + `<div class="list l-${u.layout}">${ss.slice(from, from + per).map(x => L.item(x, s.now, T)).join('')}</div>`
       + (paged ? `<div class="pager">${pb('up', above, u.page === 0)}<span class="pn">${u.page + 1} / ${pages}${s.sessions_more ? ` · +${s.sessions_more}` : ''}</span>${pb('down', below, u.page === pages - 1)}</div>` : '')
@@ -504,35 +483,35 @@ class Board {
     const s = this.snap, T = this.T, i = info(x, T), [ic, txt] = line2(x, T), t = timeText(x, s.now, T);
     const left = this.static ? 100 : Math.max(0, 100 - (Date.now() - this.ui.detAt) / 300);
     const subs = x.subagents || [];
-    return `<div class="hdr"><button class="back" data-a="back">${icon('back', 14)}${T.back}</button>
+    return `<div class="hdr"><button class="back" data-a="back">${icon('back')}${T.back}</button>
         <span class="chip st-${x.status}">${i.short}</span></div>
       <div class="tmr"><i style="width:${left}%"></i></div>
       <div class="det st-${x.status}">
         <div class="dn">${esc(x.name)}</div>
-        <div class="ds">${icon(i.icon, 11)}${i.label}${t ? ` <span>· ${t}</span>` : ''}</div>
+        <div class="ds">${icon(i.icon)}${i.label}${t ? ` <span>· ${t}</span>` : ''}</div>
         <div class="dc"><span>${T.ctx}</span><span>${x.tokens != null ? `<b>${ktok(x.tokens)}</b> / ${ktok(x.tokens_max)} · ` : ''}${x.ctx == null ? T.nodata : `<b>${x.ctx}%</b>`}</span></div>
         ${bar(x.ctx)}
-        ${x.status === 'work' || x.status === 'wait' ? `<div class="da st-${x.status}">${icon(ic, 11)}<div>${esc(txt)}</div></div>` : ''}
+        ${x.status === 'work' || x.status === 'wait' ? `<div class="da st-${x.status}">${icon(ic)}<div>${esc(txt)}</div></div>` : ''}
         ${subs.length ? `<div class="sh">${T.subagents} · ${subs.length + (x.subagents_more || 0)}</div>`
-          + subs.map(a => `<div class="sa">${icon('agent', 11)}<b>${esc(a.type)}</b><span class="ell">${esc(a.task)}</span></div>`).join('')
+          + subs.map(a => `<div class="sa">${icon('agent')}<b>${esc(a.type)}</b><span class="ell">${esc(a.task)}</span></div>`).join('')
           + (x.subagents_more ? `<div class="more">+${x.subagents_more} ${T.more}</div>` : '') : ''}
-        <div class="mt">${icon('folder', 11)}<span class="ell">${esc(x.dir)}</span></div>
-        <div class="mt">${x.model ? `${icon('cpu', 11)}<span>${esc(x.model)}</span> ·` : ''} ${icon('clock', 11)}<span>${T.opened} ${dur(s.now - x.started, false, T)}</span></div>
+        <div class="mt">${icon('folder')}<span class="ell">${esc(x.dir)}</span></div>
+        <div class="mt">${x.model ? `${icon('cpu')}<span>${esc(x.model)}</span> ·` : ''} ${icon('clock')}<span>${T.opened} ${dur(s.now - x.started, false, T)}</span></div>
       </div>${this.ftr()}`;
   }
   settingsHTML() {
     const u = this.ui, T = this.T, fwu = this.ok && this.snap.fw_update;
     const seg = (a, opts, cur) => `<div class="seg">${opts.map(([v, l]) => `<button data-a="${a}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-    return `<div class="hdr"><button class="back" data-a="back">${icon('back', 14)}${T.back}</button><span class="ttl2">${T.settings}</span></div>
+    return `<div class="hdr"><button class="back" data-a="back">${icon('back')}${T.back}</button><span class="ttl2">${T.settings}</span></div>
       <div class="set">
         <div class="two">
-          <div><div class="lb">${T.theme}</div>${seg('theme', [['dark', icon('moon', 14)], ['light', icon('sun', 15)]], u.theme)}</div>
+          <div><div class="lb">${T.theme}</div>${seg('theme', [['dark', icon('moon')], ['light', icon('sun')]], u.theme)}</div>
           <div><div class="lb">${T.lang}</div>${seg('lang', [['ru', 'RU'], ['en', 'EN']], u.lang)}</div>
         </div>
         <div class="lb">${T.size}</div>${seg('size', [['13', '<span style="font-size:11px">A</span>'], ['14', '<span style="font-size:13px">A</span>'], ['16', '<span style="font-size:16px">A</span>']], String(u.size))}
-        <div class="sl" style="margin-top:4px">${icon('sun', 13)}<input type="range" min="10" max="100" value="${u.bright}" data-a="bright"><span>${u.bright}%</span></div>
+        <div class="sl" style="margin-top:4px">${icon('sun')}<input type="range" min="10" max="100" value="${u.bright}" data-a="bright"><span>${u.bright}%</span></div>
         <div class="lb">${T.layout}</div>${seg('layout', [['large', T.large], ['compact', T.compact], ['grid', T.grid]], u.layout)}
-        <button class="btn" data-a="calib">${icon('target', 14)}${T.recal}</button>
+        <button class="btn" data-a="calib">${icon('target')}${T.recal}</button>
       </div>
       <div class="ver">${fwu ? `<span class="upd">${icon('download', 11)}${T.fwAvail} ${esc(fwu)}</span>` : ''}<span>${T.fw} ${FW} · ${T.proto} v${PROTO}</span></div>
       ${Date.now() - (u.toastAt || 0) < 2500 ? `<div class="toast">${T.calibSaved}</div>` : ''}`;

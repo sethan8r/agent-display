@@ -9,5 +9,3 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# test-only icon fonts, see firmware/tools/gen_icon_sets.py
-firmware/fonts/test/

@@ -1,5 +1,6 @@
 // Demo firmware: the real interface fed by a built-in simulation instead of the hub (same rules as design/index.html).
-// Serial commands switch scenes: "scene live|empty|lost|many|mismatch|update", "ask", "reset".
+// Starts with a showcase: every status and icon on one main screen.
+// Serial commands switch scenes: "scene showcase|live|empty|lost|many|mismatch|update", "ask", "reset".
 #include <Arduino.h>
 #include <esp_random.h>
 
@@ -44,8 +45,9 @@ static std::vector<Sim> sim;
 static Limit h5, d7;
 static uint32_t t_sim;
 
-enum Scene { LIVE, EMPTY, LOST, MANY, MISMATCH, UPDATE };
-static Scene scene = LIVE;
+enum Scene { SHOWCASE, LIVE, EMPTY, LOST, MANY, MISMATCH, UPDATE };
+static Scene scene = SHOWCASE;
+static std::vector<Sim> fixed;  // showcase / many: built once, so ids stay put and details open
 
 static Sim mk(const char* name, const char* dir, const char* status, int32_t since_ago, float ctx, int32_t started_ago = 1800) {
   Sim x;
@@ -161,27 +163,74 @@ static Snapshot snapshot() {
   if (scene == MISMATCH) p.v = PROTO + 1;
   if (scene == UPDATE) p.fw_update = "0.2.0";
   if (scene == EMPTY) return p;
-  if (scene == MANY) {
-    for (int i = 0; i < 12; i++) {
-      const Pair& n = NAMES[i];
-      static const char* st[] = {"work", "done", "work", "idle", "subs", "work", "done", "error", "work", "done"};
-      Sim x = mk(n.a, n.b, i == 10 ? "wait" : st[i % 10], 30 + i * 97, (i * 37) % 100);
-      if (i == 10) { x.s.wait_for = "perm"; x.s.icon = "ask"; x.s.action = PERMS[0]; }
-      else { x.s.icon = ACTIONS[i % 11].a; x.s.action = ACTIONS[i % 11].b; }
-      if (x.s.status == "subs") x.s.subagents = {{"Explore", SUBTASKS[i % 5].b}};
-      p.sessions.push_back(out(x));
-    }
-    return p;
-  }
-  for (size_t i = 0; i < sim.size() && i < 20; i++) p.sessions.push_back(out(sim[i]));
+  const std::vector<Sim>& src = scene == SHOWCASE || scene == MANY ? fixed : sim;
+  for (size_t i = 0; i < src.size() && i < 20; i++) p.sessions.push_back(out(src[i]));
   return p;
+}
+
+static void build_many() {
+  fixed.clear();
+  for (int i = 0; i < 12; i++) {
+    const Pair& n = NAMES[i];
+    static const char* st[] = {"work", "done", "work", "idle", "subs", "work", "done", "error", "work", "done"};
+    Sim x = mk(n.a, n.b, i == 10 ? "wait" : st[i % 10], 30 + i * 97, (i * 37) % 100);
+    if (i == 10) { x.s.wait_for = "perm"; x.s.icon = "ask"; x.s.action = PERMS[0]; }
+    else { x.s.icon = ACTIONS[i % 11].a; x.s.action = ACTIONS[i % 11].b; }
+    if (x.s.status == "subs") x.s.subagents = {{"Explore", SUBTASKS[i % 5].b}};
+    fixed.push_back(x);
+  }
+}
+
+// every status, every wait reason, every tool icon, a long name, unknown context
+static void build_showcase() {
+  t_sim = now_s();
+  fixed.clear();
+  auto work = [](const char* name, const char* dir, int ago, float ctx, const char* ic, const char* act) {
+    Sim x = mk(name, dir, "work", ago, ctx);
+    x.s.icon = ic;
+    x.s.action = act;
+    return x;
+  };
+  auto wait = [](const char* name, const char* dir, int ago, float ctx, int kind, const char* act) {
+    Sim x = mk(name, dir, "work", ago, ctx);
+    ask(x, kind);
+    x.s.action = act;
+    x.s.since = t_sim - ago;
+    return x;
+  };
+  fixed.push_back(work("agent-display", "VSCodeProjects/agent-display", 260, 42, "edit", "Edit firmware/src/ui.cpp"));
+  fixed.push_back(wait("Рефакторинг хаба", "agent-display/plugin", 95, 67, 0, "Bash: git push origin main"));
+  fixed.push_back(wait("Telegram-бот для заказов", "pets/order-bot", 150, 34, 1, "Пушить в main или сделать PR?"));
+  fixed.push_back(wait("Переписать авторизацию на OAuth 2.1 с PKCE", "work/auth", 600, 95, 2,
+                       "План: 7 шагов — токены, refresh, миграция пользователей, тесты"));
+  Sim subs = mk("shop-backend", "work/shop-backend", "subs", 410, 23);
+  subs.s.model = "Sonnet 5.5";
+  subs.s.tokens_max = 1000000;
+  subs.s.subagents = {{"Explore", "Найти все вызовы оплаты"}, {"Explore", "Где парсится webhook"},
+                      {"Plan", "План рефакторинга платежей"}, {"general-purpose", "Проверить доки по хукам"},
+                      {"Explore", "Найти все вызовы Serial"}};
+  fixed.push_back(subs);
+  fixed.push_back(work("landing", "site/landing", 40, 12, "run", "Bash: npm run build"));
+  fixed.push_back(work("docs", "work/docs", 75, 55, "read", "Read docs/protocol.md"));
+  fixed.push_back(work("api-gateway", "work/api-gateway", 520, 74, "find", "Grep: session_id"));
+  fixed.push_back(work("ml-pipeline", "lab/ml-pipeline", 1300, 30, "web", "WebFetch code.claude.com/docs/en/hooks"));
+  Sim agent = work("infra", "work/infra", 3700, 48, "agent", "Agent: Найти конфиг роутера");
+  agent.s.subagents = {{"Explore", "Найти конфиг роутера"}};
+  fixed.push_back(agent);
+  fixed.push_back(work("Обновить зависимости", "work/shop-frontend", 20, -1, "other", "/compact"));
+  fixed.push_back(mk("Миграция БД на Postgres", "work/shop-backend", "done", 720, 91, 9000));
+  fixed.push_back(mk("Фикс тача XPT2046", "VSCodeProjects/agent-display", "error", 45, 61));
+  fixed.push_back(mk("Новая сессия", "VSCodeProjects/new", "idle", 0, -1, 30));
 }
 
 static void command(String c) {
   c.trim();
   if (c.startsWith("scene ")) {
     String n = c.substring(6);
-    scene = n == "empty" ? EMPTY : n == "lost" ? LOST : n == "many" ? MANY : n == "mismatch" ? MISMATCH : n == "update" ? UPDATE : LIVE;
+    scene = n == "showcase" ? SHOWCASE : n == "empty" ? EMPTY : n == "lost" ? LOST : n == "many" ? MANY
+          : n == "mismatch" ? MISMATCH : n == "update" ? UPDATE : LIVE;
+    if (scene == SHOWCASE) build_showcase();
+    if (scene == MANY) build_many();
   } else if (c == "ask") {
     if (!sim.empty()) ask(sim[random(sim.size())], 0);
   } else if (c == "reset") reset();
@@ -195,6 +244,7 @@ void setup() {
   randomSeed(esp_random());
   ui::begin(lcd);
   reset();
+  build_showcase();
   Serial.println("hello demo");
 }
 
