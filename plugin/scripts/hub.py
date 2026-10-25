@@ -117,6 +117,7 @@ class Hub:
             self.changed.clear()
             with self.lock:
                 self.drop_closed(now)
+                self.state.check_interrupts(now)
                 snap = self.state.snapshot(now)
                 if self.state.sessions:
                     self.empty_since = now

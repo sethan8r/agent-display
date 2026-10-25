@@ -135,6 +135,7 @@ IDEA/PhpStorm — Claude Code там тот же CLI, хуки работают 
 | Начал задачу (старт таймера) | `UserPromptSubmit` |
 | Субагенты | `SubagentStart` / `SubagentStop` (`agent_id`, `agent_type`); описание задачи (3–5 слов) — `tool_input.description` вызова субагента; инструменты субагента приходят с `agent_id` |
 | Конец сессии | `SessionEnd` + проверка процесса |
+| Отказ в разрешении / Esc | **хуков нет вообще** (ни `Stop`, ни `PostToolUseFailure`, `PermissionDenied` — только авто-режим) → хаб смотрит конец transcript: строка `[Request interrupted by user…]` → «ждёт задачу». Найдено на живом тесте |
 
 **Статус-строка**: плагин не может сам её задать (в настройках плагина работают только `agent` и
 `subagentStatusLine`). Поэтому команда настройки плагина (запускается один раз, спрашивает) встраивает

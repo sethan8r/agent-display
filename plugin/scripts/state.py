@@ -92,6 +92,35 @@ def tokens_from_transcript(path):
     return None
 
 
+def interrupted(path):
+    """True when the last message in the transcript is the user stopping Claude: a denied permission prompt
+    ("[Request interrupted by user for tool use]") or Esc ("[Request interrupted by user]"). Neither fires a hook."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 8192))
+            tail = f.read().decode("utf-8", "replace")
+    except (OSError, TypeError):
+        return False
+    for line in reversed(tail.splitlines()):
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if d.get("type") not in ("user", "assistant"):
+            continue
+        if d["type"] == "assistant":
+            return False
+        content = (d.get("message") or {}).get("content")
+        texts = [content] if isinstance(content, str) else [c.get("text", "") for c in content or [] if isinstance(c, dict)]
+        if any(str(t).startswith("[Request interrupted by user") for t in texts):
+            return True
+        if isinstance(content, list) and any(isinstance(c, dict) and c.get("type") == "tool_result" for c in content):
+            continue  # the rejected tool's result comes right before the interrupt line
+        return False
+    return False
+
+
 class Session:
     def __init__(self, sid, now):
         self.id, self.cwd, self.transcript = sid, "", None
@@ -207,6 +236,16 @@ class State:
             if w and w.get("used_percentage") is not None and w.get("resets_at"):
                 self.limits[short] = {"pct": round(w["used_percentage"]), "reset": int(w["resets_at"])}
         return s
+
+    def check_interrupts(self, now):
+        """Sessions stopped by the user (denied prompt, Esc) send no hook: catch it in the transcript.
+        Returns True if a session changed."""
+        changed = False
+        for s in self.sessions.values():
+            if s.status in ("work", "wait") and now - s.last_event >= 1 and interrupted(s.transcript):
+                s.status, s.since, s.wait_for, s.icon, s.action = "idle", now, None, None, None
+                changed = True
+        return changed
 
     def _fallback_context(self, s, now):
         if now - s.status_line_at < 60 and s.ctx is not None:

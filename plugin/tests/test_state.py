@@ -102,6 +102,32 @@ class SessionFlow(unittest.TestCase):
                          ("Hub refactoring", "Opus 5.5", 42, 84800, 200000))
         self.assertEqual(snap["limits"], {"5h": {"pct": 24, "reset": 1738425600}})
 
+    def test_denied_prompt_and_esc(self):
+        """No hook fires when the user denies a prompt or presses Esc: the transcript tells (lines as recorded)."""
+        import tempfile
+        rejected = {"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "is_error": True, "content": "The user doesn't want to proceed with this tool use."}]}}
+        stop_line = {"type": "user", "message": {"role": "user", "content": [
+            {"type": "text", "text": "[Request interrupted by user for tool use]"}]}}
+        tool_use = {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use"}]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "t.jsonl")
+
+            def write(*lines):
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(json.dumps(x) for x in lines) + '\n{"type": "system"}\n')
+
+            write(tool_use)
+            self.apply(ev("UserPromptSubmit", 10, prompt="go", transcript_path=path),
+                       ev("PermissionRequest", 11, tool_name="Edit", tool_input={"file_path": "/x/a.py"}))
+            self.assertFalse(self.st.check_interrupts(20))  # still waiting: the prompt is open
+            write(tool_use, rejected, stop_line)
+            self.assertFalse(self.st.check_interrupts(11.5))  # too fresh, the hooks may still be on their way
+            self.assertTrue(self.st.check_interrupts(20))
+            s = self.st.snapshot(now=20)["sessions"][0]
+            self.assertEqual((s["status"], s["since"]), ("idle", 20))
+            self.assertNotIn("action", s)
+
     def test_text_fits_the_board(self):
         self.assertEqual(state.clean("Привет 👋\nмир\tЁё «x» — №1 ↑", 80), "Привет мир Ёё «x» — №1 ↑")
         self.assertEqual(state.clean("a" * 50, 40), "a" * 39 + "…")
