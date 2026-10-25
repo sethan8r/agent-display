@@ -153,6 +153,20 @@ and a green "Firmware available" when the plugin brings a newer one.
 <summary><b>Icons</b></summary>
 <br>
 
+Status:
+
+| Icon | Means |
+|---|---|
+| ✓ | done |
+| ⚠ | asks permission |
+| ? | asked a question |
+| 📋 | waits for plan approval |
+| 👥 | waits for subagents |
+| ✕ | API error |
+| • | new session, nothing asked yet |
+
+Current action:
+
 | Icon | Means |
 |---|---|
 | ✎ | edits a file (Edit, Write) |
@@ -160,7 +174,8 @@ and a green "Firmware available" when the plugin brings a newer one.
 | 📄 | reads a file |
 | 🔍 | searches (Grep, Glob) |
 | 🌐 | web (WebFetch, WebSearch) |
-| 👥 | subagent |
+| 👥 | runs a subagent |
+| ⋯ | anything else |
 
 </details>
 
