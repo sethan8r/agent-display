@@ -16,7 +16,7 @@ USB_IDS = {(0x1A86, 0x7523), (0x1A86, 0x55D4), (0x10C4, 0xEA60)}  # CH340, CH910
 class Board:
     def __init__(self, log):
         self.log, self.port, self.hello, self._next_try, self._rx = log, None, None, 0, b""
-        self.opened_at, self.skip = 0, {}  # device -> time until which it is left alone
+        self.opened_at, self.skip, self.paused_until = 0, {}, 0  # skip: device -> time until which it's left alone
 
     def find(self):
         wanted = os.environ.get("AGENT_DISPLAY_PORT")
@@ -45,8 +45,13 @@ class Board:
             self.close()
             return False
 
+    def pause(self, seconds):
+        """Let go of the port for a while (a firmware update needs it); 0 resumes right away."""
+        self.close()
+        self.paused_until = time.time() + seconds
+
     def _connect(self):
-        if time.time() < self._next_try:
+        if time.time() < max(self._next_try, self.paused_until):
             return False
         self._next_try = time.time() + 2
         device = self.find()

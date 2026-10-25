@@ -24,8 +24,24 @@ import state  # noqa: E402
 PORT = 47800
 URL = f"http://127.0.0.1:{PORT}"
 IDLE_EXIT_S = 300   # no sessions for this long: exit
+FIRMWARE_JSON = os.path.join(HERE, "..", "firmware", "firmware.json")  # written by firmware/tools/publish.py
 MIN_GAP_S = 0.2     # at most 5 snapshots a second
 NO_PID_TTL_S = 6 * 3600  # sessions whose process is unknown are dropped after this long without events
+
+
+def version(v):
+    try:
+        return tuple(int(x) for x in str(v).split("."))
+    except ValueError:
+        return ()
+
+
+def bundled_firmware():
+    try:
+        with open(FIRMWARE_JSON, encoding="utf-8") as f:
+            return json.load(f).get("version")
+    except (OSError, ValueError):
+        return None
 
 
 def data_dir():
@@ -89,6 +105,8 @@ class Hub:
         self.log, self.lock, self.changed = log, threading.Lock(), threading.Event()
         self.state, self.board = state.State(), board.Board(log)
         self.last_snapshot, self.empty_since = None, time.time()
+        self.release_for = None  # set by POST /release: seconds to leave the port alone (a firmware update)
+        self.bundled = bundled_firmware()
 
     def handle(self, path, body, client_port):
         with self.lock:
@@ -128,10 +146,16 @@ class Hub:
                 with self.lock:
                     self.drop_closed(now)
                     self.state.check_interrupts(now)
-                    snap = self.state.snapshot(now)
+                    hello = self.board.hello or {}
+                    newer = self.bundled and hello and version(self.bundled) > version(hello.get("fw"))
+                    snap = self.state.snapshot(now, fw_update=self.bundled if newer else None)
                     if self.state.sessions:
                         self.empty_since = now
                 self.last_snapshot = snap
+                if self.release_for is not None:  # done here, in the one thread that touches the port
+                    self.board.pause(self.release_for)
+                    self.log.info("port released for %s s", self.release_for)
+                    self.release_for = None
                 self.board.send(snap)
             except Exception:  # noqa: BLE001
                 self.log.exception("loop")
@@ -163,10 +187,15 @@ def serve(hub):
             # lock stays tiny; it also keeps the socket open for the PID lookup and one session's hooks in order
             if self.local() and isinstance(body, dict) and self.path in ("/hook", "/status"):
                 hub.handle(self.path, body, self.client_address[1])
+            elif self.local() and isinstance(body, dict) and self.path == "/release":  # update_firmware.py
+                hub.release_for = max(0, min(int(body.get("seconds") or 0), 600))
+                hub.changed.set()
 
         def do_GET(self):
-            out = b"agent-display" if self.path == "/ping" else json.dumps(hub.last_snapshot).encode()
-            self.send_response(200 if self.local() and self.path in ("/ping", "/snapshot") else 404)
+            board = {"port": hub.board.port and hub.board.port.port, "hello": hub.board.hello, "bundled": hub.bundled}
+            out = {"/ping": b"agent-display", "/snapshot": json.dumps(hub.last_snapshot).encode(),
+                   "/board": json.dumps(board).encode()}.get(self.path, b"")
+            self.send_response(200 if self.local() and out else 404)
             self.send_header("Access-Control-Allow-Origin", "null")  # only pages opened from disk: the mockup
             self.end_headers()
             if self.local():

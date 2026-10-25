@@ -79,7 +79,7 @@ Click a topic to expand it.
   - second line — what it does right now (icon + tool + file or command), or what it waits for;
   - **%** and the thin bar — context window usage. The bar turns yellow at 70 %, red at 90 %,
     and is dashed when unknown (start of a session, right after `/compact`);
-  - a third line, with big text when there is room: the full question or command for a session waiting for you,
+  - a third line, with the biggest text (16): the full question or command for a session waiting for you,
     what was done for a finished one, **quiet N min** for a working one that hasn't done anything for a while,
     the first subagent's task, otherwise the project folder and model.
 - **Order** — by start time, new sessions at the end. Rows never jump: a waiting session is not moved
@@ -204,16 +204,10 @@ Format of the data: [docs/protocol.md](docs/protocol.md).
 ## Install
 
 You need: Windows 10/11 with [Python 3](https://www.python.org/downloads/) and Git for Windows (Claude Code uses
-its Git Bash). macOS and Linux should work but haven't been tested.
+its Git Bash), and a micro-USB cable that carries data (some cables only charge). macOS and Linux should work but
+haven't been tested. Nothing else: no PlatformIO, no Arduino IDE.
 
-**1. Flash the board.** With [PlatformIO](https://platformio.org/) installed, plug the board in by micro-USB and run:
-
-```
-cd firmware
-pio run -e main -t upload
-```
-
-On the first start, calibrate the touch screen: tap the tip of the arrow in each corner.
+**1. Plug the board in** by its **micro-USB** port. Windows installs the USB driver (CH340) by itself.
 
 **2. Install the plugin.** In Claude Code:
 
@@ -222,11 +216,19 @@ On the first start, calibrate the touch screen: tap the tip of the arrow in each
 /plugin install agent-display@agent-display
 ```
 
-New sessions start showing up on the board right away.
+**3. Flash the board:** `/agent-display:update-firmware`. Claude finds the board, asks before flashing and writes the
+firmware that comes with the plugin; it takes about a minute. If something goes wrong, Claude reads the error and
+helps right there in the chat. Reflashing is always safe.
 
-**3. Connect the status line** (once): `/agent-display:setup`. It puts a small wrapper in front of your status line,
+**4. Calibrate the touch screen.** On the first start the board shows arrows: tap the tip of the arrow in each
+corner. New Claude Code sessions show up on the board right away.
+
+**5. Connect the status line** (once): `/agent-display:setup`. It puts a small wrapper in front of your status line,
 so the board also gets the context and plan limits. Your status line stays exactly as it is;
 `/agent-display:setup remove` undoes it.
+
+Building the firmware yourself instead: `cd firmware`, `pio run -e main -t upload` with
+[PlatformIO](https://platformio.org/) (close Claude Code first: its hub holds the board's port).
 
 ## Update
 
@@ -239,16 +241,8 @@ claude plugin update agent-display@agent-display
 
 The new version loads in the next Claude Code session (or right away after `/reload-plugins`).
 
-**Firmware.** When the board says *"Plugin is newer than firmware"*, flash it again as in step 1. While any
-Claude Code session is open, the plugin's background hub holds the board's port and the upload fails with
-*"could not open port"*: close all Claude Code windows (the hub lets go within 5 minutes), or stop it right away
-in PowerShell:
-
-```
-Get-CimInstance Win32_Process | ? CommandLine -like '*agent-display*hub.py*' | % { Stop-Process $_.ProcessId }
-```
-
-Settings and touch calibration survive a firmware update.
+**Firmware.** When the board says *"Plugin is newer than firmware"* (or shows an update notice), run
+`/agent-display:update-firmware` again. Only the app is rewritten: settings and touch calibration stay.
 
 ## Uninstall
 
@@ -270,7 +264,7 @@ The first command puts your own status line back; do it before uninstalling.
 
 ```
 .claude-plugin/marketplace.json   marketplace entry for /plugin marketplace add
-plugin/                           the Claude Code plugin: hooks, hub, status line wrapper
+plugin/                           the Claude Code plugin: hooks, hub, status line wrapper, ready firmware
 firmware/                         board firmware (PlatformIO + Arduino + LVGL 9 + LovyanGFX)
 design/                           interactive mockup of the screens — open index.html in a browser
 docs/protocol.md                  JSON format hub → board
@@ -281,9 +275,9 @@ enclosure/                        3D-printable case
 
 - **3D-printable case**: models to print (STL / 3MF / STEP) and dimensioned drawings of the board, in
   [`enclosure/`](enclosure/).
-- **Firmware updates from Claude Code**: `/agent-display:update-firmware` flashes a ready firmware, no PlatformIO
-  needed. Settings and touch calibration are kept.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The plugin bundles [pyserial](https://github.com/pyserial/pyserial) (BSD),
+[esptool](https://github.com/espressif/esptool) (GPL-2.0, run as a separate program) and intelhex (BSD), each with
+its license in `plugin/vendor/`.

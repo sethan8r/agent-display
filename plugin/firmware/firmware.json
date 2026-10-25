@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0",
+  "proto": 1,
+  "chip": "esp32",
+  "flash_size": "4MB",
+  "files": {
+    "0x1000": "bootloader.bin",
+    "0x8000": "partitions.bin",
+    "0x10000": "firmware.bin"
+  },
+  "app": "0x10000"
+}
