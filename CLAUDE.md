@@ -28,7 +28,7 @@
 ## Окружение
 
 - Python только через `py -3`: `python` в PATH — нерабочая заглушка Microsoft Store.
-- PlatformIO: `~\.platformio\penv\Scripts\pio.exe`. Плата на **COM5**, только через **micro-USB** (по USB-C Windows её не видит).
+- PlatformIO: `~\.platformio\penv\Scripts\pio.exe`. Плата на **COM5**; работают оба порта, micro-USB и USB-C (проверено 2026-10-25).
 - **Плагин у меня — dev-сборка**: marketplace на папку проекта, плагин читается прямо из `plugin/`. Правки хуков и
   команд — после `/reload-plugins` или в новой сессии; правки хаба — после перезапуска (погасить процесс `hub.py`,
   следующий хук поднимет новый). Пока хаб держит порт, `pio run -t upload` не пройдёт.

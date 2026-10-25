@@ -203,10 +203,10 @@ Format of the data: [docs/protocol.md](docs/protocol.md).
 ## Install
 
 You need: Windows 10/11 with [Python 3](https://www.python.org/downloads/) and Git for Windows (Claude Code uses
-its Git Bash), and a micro-USB cable that carries data (some cables only charge). macOS and Linux should work but
+its Git Bash), and a USB cable that carries data (some cables only charge). macOS and Linux should work but
 haven't been tested. Nothing else: no PlatformIO, no Arduino IDE.
 
-**1. Plug the board in** by its **micro-USB** port. Windows installs the USB driver (CH340) by itself.
+**1. Plug the board in** by either port, micro-USB or USB-C. Windows installs the USB driver (CH340) by itself.
 
 **2. Install the plugin.** In Claude Code:
 
@@ -255,7 +255,7 @@ The first command puts your own status line back; do it before uninstalling.
 ## Hardware
 
 - ESP32-2432S028 "Cheap Yellow Display", two-port version (micro-USB + USB-C).
-  Use the **micro-USB** port.
+  Either port works; if the board doesn't show up, try another cable.
 - Resistive touch — a stylus or fingernail works best.
 - Printable case: see [`enclosure/`](enclosure/).
 

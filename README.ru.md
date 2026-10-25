@@ -202,10 +202,10 @@ flowchart LR
 ## Установка
 
 Нужно: Windows 10/11 с [Python 3](https://www.python.org/downloads/) и Git for Windows (Claude Code использует его
-Git Bash) и micro-USB кабель, который передаёт данные (бывают только для зарядки). На macOS и Linux должно работать,
+Git Bash) и USB-кабель, который передаёт данные (бывают только для зарядки). На macOS и Linux должно работать,
 но не проверялось. Больше ничего: ни PlatformIO, ни Arduino IDE.
 
-**1. Подключи плату** через её порт **micro-USB**. Драйвер USB (CH340) Windows поставит сама.
+**1. Подключи плату** через любой её порт — micro-USB или USB-C. Драйвер USB (CH340) Windows поставит сама.
 
 **2. Поставь плагин.** В Claude Code:
 
@@ -254,7 +254,7 @@ claude plugin update agent-display@agent-display
 ## Железо
 
 - ESP32-2432S028 «Cheap Yellow Display», версия с двумя портами (micro-USB + USB-C).
-  Подключать через **micro-USB**.
+  Подходит любой порт; если плата не видна — попробуй другой кабель.
 - Тач резистивный — удобнее стилусом или ногтем.
 - Корпус для 3D-печати: см. [`enclosure/`](enclosure/).
 

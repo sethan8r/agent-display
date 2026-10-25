@@ -60,7 +60,7 @@ def flash(full, port):
             time.sleep(0.1)
     port = port or board.Board(None).find()
     if not port:
-        print("no board found: plug it in with a micro-USB data cable")
+        print("no board found: plug it in with a USB data cable")
         return 1
     files = m["files"] if full else {m["app"]: m["files"][m["app"]]}
     images = [x for offset, name in files.items() for x in (offset, os.path.join(FIRMWARE, name))]

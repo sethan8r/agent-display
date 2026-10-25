@@ -10,8 +10,8 @@ Python: use `py -3` on Windows; if that command is missing, use `python3`.
 Script: `"${CLAUDE_PLUGIN_ROOT}/scripts/update_firmware.py"`.
 
 1. Run the script with `status`. Tell the user in one or two lines what the board runs now and what the plugin brings.
-   If no board is found: ask them to plug the board in with a micro-USB cable that carries data (some cables only
-   charge), wait a few seconds, and check again. Windows normally installs the USB driver (CH340) by itself; if the
+   If no board is found: ask them to plug the board in (micro-USB or USB-C port) with a cable that carries data (some
+   cables only charge; if one doesn't work, try another), wait a few seconds, and check again. Windows normally installs the USB driver (CH340) by itself; if the
    board still doesn't show up, point them to the CH340 driver from WCH (wch-ic.com).
 2. Ask for confirmation before flashing. Say: it takes about a minute, the screen may go dark meanwhile, the board
    restarts by itself, and settings and touch calibration are kept.
