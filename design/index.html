@@ -544,8 +544,11 @@ class Board {
   }
   emptyHTML() {
     const T = this.T, n = T.phrases.length;
-    // a new random phrase every time the screen becomes empty, never the same one twice in a row
-    if (!this.wasEmpty) this.phrase = (this.phrase ?? -1) < 0 ? Math.floor(Math.random() * n) : (this.phrase + 1 + Math.floor(Math.random() * (n - 1))) % n;
+    // a new random phrase every time the screen becomes empty and every 2 minutes while it stays empty, never the same twice in a row
+    if (!this.wasEmpty || Date.now() - this.phraseAt > 120000) {
+      this.phrase = (this.phrase ?? -1) < 0 ? Math.floor(Math.random() * n) : (this.phrase + 1 + Math.floor(Math.random() * (n - 1))) % n;
+      this.phraseAt = Date.now();
+    }
     this.emptyNow = true;
     return this.hdr() + `<div class="empty">${icon('coffee', 30)}<div class="ph">${T.phrases[this.phrase]}</div>
       <div class="sub">${T.noAgents}</div></div>` + this.ftr();
