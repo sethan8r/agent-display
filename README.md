@@ -213,6 +213,9 @@ In Claude Code:
 /plugin install agent-display@agent-display
 ```
 
+Then run `/agent-display:setup` once: it puts a small wrapper in front of your status line, so the board also gets
+the context and plan limits. Your status line stays exactly as it is; `/agent-display:setup remove` undoes it.
+
 Firmware updates come with the plugin: `/agent-display:update-firmware`
 (the board tells you when it's time; settings and touch calibration are kept).
 

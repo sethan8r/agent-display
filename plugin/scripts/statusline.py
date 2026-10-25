@@ -33,6 +33,7 @@ def main():
         cfg = {}
     run_original((cfg.get("original") or {}).get("command"), raw)  # theirs first: it is what they look at
     try:
+        os.environ.setdefault("CLAUDE_PLUGIN_DATA", HERE)  # this copy lives in the plugin data dir; a hub we start logs there
         sys.path.insert(0, os.path.join(cfg["plugin_root"], "scripts"))
         import hub
         import procs
